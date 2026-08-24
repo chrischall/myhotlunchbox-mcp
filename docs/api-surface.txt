@@ -1,0 +1,402 @@
+## /WebSocket  (1)
+GET /WebSocket/tasksTestMessage ?message   // tasks.?
+
+## /adminTasks  (58)
+GET /adminTasks/manageSchoolProgramPayment ?sendRemainders   // tasks.?
+POST /adminTasks/runCalculateSchoolParticipationRate   // tasks.?
+POST /adminTasks/runCalculateSchoolProfitability   // tasks.?
+POST /adminTasks/runCalculateStoreProfitability   // tasks.?
+POST /adminTasks/runChargeIfSchoolOrdersIsLessMin?timeZone=${r}   // tasks.?
+POST /adminTasks/runClearLogs   // tasks.?
+POST /adminTasks/runClearStripePaymentLogs?olderInDays=${r}   // tasks.?
+POST /adminTasks/runCloseUnsubmittedInvoices?runDate=${r}   // tasks.?
+POST /adminTasks/runCoordinatesSetter?recalcAll=   // tasks.?
+POST /adminTasks/runDailyUserCreditLog   // tasks.?
+POST /adminTasks/runDeliveryExceptionsReminder?daysBefore=${r}   // tasks.?
+POST /adminTasks/runGenerateCombinedSchoolContracts   // tasks.?
+POST /adminTasks/runGenerateCombinedStoreContracts   // tasks.?
+POST /adminTasks/runInactiveParents?runDate=${r}   // tasks.?
+POST /adminTasks/runMatchingProcess?orderingPeriodId=${r}   // tasks.?
+POST /adminTasks/runNoStoreEmailReminder   // tasks.?
+GET /adminTasks/runParentOrderPickUpReminder   // tasks.?
+GET /adminTasks/runParentOrdersReminder ?week&dayOfWeek   // tasks.?
+POST /adminTasks/runParentSessionOrdersReminder?skipMinutes=${r}   // tasks.?
+GET /adminTasks/runPlannedEmailSender ?batchSize&overdueInMinutes&allowedRetryCount   // tasks.?
+POST /adminTasks/runPlannedEmailSenderStuckInQueue [body]   // tasks.?
+GET /adminTasks/runPlannedMassEmailSender ?batchSize&overdueInMinutes&allowedRetryCount   // tasks.?
+POST /adminTasks/runPlannedSmsSender [body]   // tasks.?
+POST /adminTasks/runSchoolAmbassadorCredit   // tasks.?
+POST /adminTasks/runSchoolAverageNumberOfOrders   // tasks.?
+POST /adminTasks/runSchoolCalendarNotification?runDate=${r}   // tasks.?
+POST /adminTasks/runSchoolContractStatus   // tasks.?
+POST /adminTasks/runSchoolDonation?runDate=   // tasks.?
+POST /adminTasks/runSchoolFundraising?runDate=${r}&isOnlyToQB=${e}   // tasks.?
+POST /adminTasks/runSchoolOnboardingReminder?runDate=${r}   // tasks.?
+POST /adminTasks/runSchoolOnboardingSettingRenewal?effectiveDate=${r}   // tasks.?
+POST /adminTasks/runSchoolOnboardingStatusOverdue?runDate=${r}   // tasks.?
+POST /adminTasks/runSchoolOnboardingStatusReplaceGeneralInfo?runDate=${r}   // tasks.?
+POST /adminTasks/runSchoolProgramDeactivate?runDate=${r}   // tasks.?
+POST /adminTasks/runSchoolProgramStudentsWithoutOrders [body]   // tasks.?
+POST /adminTasks/runSchoolRegFee?runDate=   // tasks.?
+POST /adminTasks/runSendDistributionReportsToBusiness [body]   // tasks.?
+POST /adminTasks/runSendDistributionReportsToSchools [body]   // tasks.?
+POST /adminTasks/runSendEmailIfSchoolOrdersIsLessMin?timeZone=${r}   // tasks.?
+POST /adminTasks/runSendLentRemainder [body]   // tasks.?
+POST /adminTasks/runSendVendorHasNotLoggedInReminder [body]   // tasks.?
+POST /adminTasks/runStoreRenewalOverdueUpdater   // tasks.?
+POST /adminTasks/runStoreRenewalUpdateItems?runDate=${r}   // tasks.?
+POST /adminTasks/runSubscriptionOrdersPayment [body]   // tasks.?
+POST /adminTasks/runSubscriptionOrdersPaymentCheck [body]   // tasks.?
+GET /adminTasks/runTreatRefund ?timeoutDays   // tasks.?
+POST /adminTasks/runUpdateItemPrice?runDate=${r}   // tasks.?
+POST /adminTasks/runUpdateSchoolLifecyclePhase   // tasks.?
+GET /adminTasks/runUpdateVendorDailyCost ?selectedDate&timeZone   // tasks.?
+GET /adminTasks/runUpdateVendorMonthlyCost ?timeZone   // tasks.?
+GET /adminTasks/runUpdateVendorMonthlyCostAfterLastEvent ?timeZone   // tasks.?
+POST /adminTasks/runVendorDayBeforeDeliveriesEmailSender?runDate=${r}&timeZone=${e}   // tasks.?
+POST /adminTasks/runVendorDeliveriesCompleteEmailSender?runDate=${r}   // tasks.?
+GET /adminTasks/runVendorUpcomingDeliveriesEmailSender ?week   // tasks.?
+GET /adminTasks/runVendorUpcomingDeliveriesSmsSender ?runDate   // tasks.?
+GET /adminTasks/runVendorWeeklySmsReminder   // tasks.?
+GET /adminTasks/schoolProgramPayment ?includeAlreadyPaid   // tasks.?
+GET /adminTasks/Tasks   // tasks.?
+
+## /ajax  (50)
+POST /ajax/addSessionOrders [body]   // ajax-service.?
+POST /ajax/deleteSessionOrders [body]   // ajax-service.?
+GET /ajax/filterTeacherDropDownOptionsBySchoolIdAndGradeId ?schoolId&gradeId   // ajax-service.?
+GET /ajax/getAddonItemsDropDownOptions ?storeId&vendorMenuId&isAdmin   // ajax-service.?
+GET /ajax/getBaseTaxRate ?postalCode   // ajax-service.?
+GET /ajax/getCardByChargeId ?chargeId   // ajax-service.?
+GET /ajax/getCountries   // ajax-service.?
+GET /ajax/getCountryStates ?countryId   // ajax-service.?
+GET /ajax/getCouponCodes   // ajax-service.?
+GET /ajax/getCreditReasonDropDown ?showOnetimeCourtesy   // ajax-service.?
+GET /ajax/getEventByIdWithSchoolInfo ?eventId   // ajax-service.?
+GET /ajax/getEventSpecialDates ?startDate&endDate&dayOfWeek   // ajax-service.?
+GET /ajax/getGradeAndTeacherDropDownOptionsBySchoolId ?id   // ajax-service.?
+GET /ajax/getGradeAndTeacherExtendedDropDownOptionsBySchoolId ?id   // ajax-service.?
+GET /ajax/getGuid   // ajax-service.?
+GET /ajax/getItemTypeTagsDropDownOptions   // ajax-service.?
+GET /ajax/getPaymentDate ?paymentId   // ajax-service.?
+GET /ajax/getPostalCodesDropDownOptions ?stateIds   // ajax-service.?
+GET /ajax/getSchoolName ?schoolId   // ajax-service.?
+GET /ajax/getSchools   // ajax-service.?
+GET /ajax/getSchoolsDropDown ?name&orgType&ignoreQueryFilters   // ajax-service.?
+GET /ajax/getSchoolsForSchoolCredit   // ajax-service.?
+GET /ajax/getSchoolsForVendorCredit   // ajax-service.?
+GET /ajax/getSchoolsSelectListItems   // ajax-service.?
+GET /ajax/getSchoolTiers   // ajax-service.?
+GET /ajax/getSchoolType ?schoolId   // ajax-service.?
+GET /ajax/getSelectedTimeZone ?postalCode   // ajax-service.?
+GET /ajax/getSpecialTaxRate ?countyName   // ajax-service.?
+GET /ajax/getStoreName ?storeId   // ajax-service.?
+GET /ajax/getStores   // ajax-service.?
+GET /ajax/getStoresForVendorCredit ?schoolId   // ajax-service.?
+GET /ajax/getStoresSelectListItems   // ajax-service.?
+GET /ajax/getTeacherExtendedDropDownOptionsBySchoolIdAndGradeId ?schoolId&gradeId   // ajax-service.?
+GET /ajax/getTeacherRoom ?teacherId   // ajax-service.?
+GET /ajax/getTimeZones ?allowAll&isStringValue   // ajax-service.?
+GET /ajax/getTreatSchoolStudents ?studentName&schoolId   // ajax-service.?
+GET /ajax/getVendorMenus ?vendorId   // ajax-service.?
+GET /ajax/getVendorMenuStores ?vendorMenuId   // ajax-service.?
+GET /ajax/getVendors ?hideIndividual   // ajax-service.?
+POST /ajax/getVendorsByTypes [body]   // ajax-service.?
+GET /ajax/gradesFiltersData ?deliveryLocationId&gradeId   // ajax-service.?
+GET /ajax/isContactEmailAlreadyTaken ?email   // ajax-service.?
+GET /ajax/isEmailAlreadyTreated ?email   // ajax-service.?
+GET /ajax/isLunchTimeExist ?id&strTime&schoolId   // ajax-service.?
+GET /ajax/isSchoolActive ?schoolId   // ajax-service.?
+GET /ajax/isStoreHasEvent ?storeId&eventId   // ajax-service.?
+GET /ajax/isTeacherExist ?id&name&schoolId&gradeId   // ajax-service.?
+GET /ajax/smsOption   // ajax-service.?
+POST /ajax/smsOption [body]   // ajax-service.?
+POST /ajax/vendorConfirmSemesterOpenOrdering?token=   // ajax-service.?
+
+## /auth  (3)
+GET /auth/registerSchool   // school-service.?
+POST /auth/registerSchool [body]   // school-service.?
+GET /auth/schoolInitialContract   // school-service.?
+
+## /calendar  (11)
+POST /calendar/calendarMoveEvent [body]   // calendar-service.?
+POST /calendar/deliveryRate [body]   // calendar-service.?
+GET /calendar/deliveryRateData   // calendar-service.?
+GET /calendar/schoolRequestEditDelivery   // calendar-service.?
+POST /calendar/schoolRequestEditDelivery [body]   // calendar-service.?
+POST /calendar/schoolStoreCalendar [body]   // calendar-service.?
+POST /calendar/storeSchoolCalendar [body]   // calendar-service.?
+GET /calendar/studentOrderItems ?studentId&date   // calendar-service.?
+POST /calendar/studentSchoolData [body]   // calendar-service.?
+GET /calendar/upcomingDeliveryData   // calendar-service.?
+GET /calendar/viewMatchedVendors   // calendar-service.?
+
+## /deliveryInfo  (8)
+GET /deliveryInfo/archivedDeliveries   // delivery-info-service.?
+GET /deliveryInfo/archivedDeliveriesList   // delivery-info-service.?
+GET /deliveryInfo/editReportsSettings   // delivery-info-service.?
+POST /deliveryInfo/editReportsSettings [body]   // delivery-info-service.?
+GET /deliveryInfo/getDeliveryInfo ?eventId   // delivery-info-service.?
+GET /deliveryInfo/nextDelivery   // delivery-info-service.?
+GET /deliveryInfo/upcomingDeliveries   // delivery-info-service.?
+GET /deliveryInfo/upcomingDeliveriesList   // delivery-info-service.?
+
+## /docusign  (4)
+GET /docusign/hasAccessToken   // docusign-service.?
+GET /docusign/initiateAuth   // docusign-service.?
+GET /docusign/schoolContractPDF ?schoolId   // docusign-service.?
+GET /docusign/schoolContractsZip   // docusign-service.?
+
+## /event  (39)
+GET /event/alertBeforeSchoolProgramPaymentDate ?studentId&startDate&endDate&isRepeated   // orders-sidebar.?
+GET /event/approvedItemSizes ?storeId&schoolId   // orders-sidebar.?
+GET /event/changeEventsStatus ?schoolId&status&startDate&endDate   // orders-sidebar.?
+GET /event/copyEvent   // orders-sidebar.?
+GET /event/createEvent ?schoolId&startDate   // orders-sidebar.?
+POST /event/createEvent [body]   // orders-sidebar.?
+GET /event/createMultipleSchoolEvent ?schoolId   // orders-sidebar.?
+POST /event/createMultipleSchoolEvent [body]   // orders-sidebar.?
+GET /event/createOrder ?eventId&studentId   // orders-sidebar.?
+POST /event/createOrder [body]   // orders-sidebar.?
+GET /event/createSchoolEvent ?schoolId&startDate   // orders-sidebar.?
+POST /event/createSchoolEvent [body]   // orders-sidebar.?
+POST /event/deleteEvent [body]   // orders-sidebar.?
+POST /event/deleteOrder [body]   // orders-sidebar.?
+POST /event/deleteSchoolEvent [body]   // orders-sidebar.?
+GET /event/editEvent ?eventId   // orders-sidebar.?
+POST /event/editEvent [body]   // orders-sidebar.?
+GET /event/editOrder   // orders-sidebar.?
+POST /event/editOrder [body]   // orders-sidebar.?
+GET /event/editSchoolEvent ?eventId   // orders-sidebar.?
+POST /event/editSchoolEvent [body]   // orders-sidebar.?
+POST /event/hasOrdersInPeriod [body]   // orders-sidebar.?
+POST /event/hasUnblockedParentsInPeriod [body]   // orders-sidebar.?
+GET /event/initMultipleSchoolEventGroup ?schoolId   // orders-sidebar.?
+GET /event/isLastOrderInGroup ?eventDate&groupId&paidGroupId   // orders-sidebar.?
+GET /event/isRepetitiveEventsInRange ?schoolId&startDate&endDate   // orders-sidebar.?
+GET /event/matchedStores   // orders-sidebar.?
+GET /event/orderBaseData ?studentId&eventDate   // orders-sidebar.?
+GET /event/semestersForCopyEvent   // orders-sidebar.?
+GET /event/shoppingCart ?orderStatus&selectedPeriod&selectedStudentId   // orders-sidebar.?
+GET /event/ShoppingCartBaseData ?shopingCartTabsName&selectedPeriod&selectedStudentId   // orders-sidebar.?
+POST /event/subscribeOrders   // orders-sidebar.?
+GET /event/subscription   // orders-sidebar.?
+GET /event/switchStudentEvent ?eventDate&studentId&isNext   // orders-sidebar.?
+GET /event/transactionDetails   // orders-sidebar.?
+GET /event/transactionsList   // orders-sidebar.?
+POST /event/unsubcribeOrder [body]   // orders-sidebar.?
+GET /event/upcomingSubscriptions ?period   // orders-sidebar.?
+GET /event/viewUpcomingSubscription ?paymentDate&isFirstOrder   // orders-sidebar.?
+
+## /interactiveDistributionReport  (6)
+GET /interactiveDistributionReport/getReport   // interactive-distribution-report-service.?
+GET /interactiveDistributionReport/getReportFilters ?schoolId   // interactive-distribution-report-service.?
+POST /interactiveDistributionReport/saveReport [body]   // interactive-distribution-report-service.?
+POST /interactiveDistributionReport/saveReportDetail [body]   // interactive-distribution-report-service.?
+POST /interactiveDistributionReport/submitDelivery [body]   // interactive-distribution-report-service.?
+GET /interactiveDistributionReport/upcomingDeliveriesList ?schoolId   // interactive-distribution-report-service.?
+
+## /item  (34)
+POST /item/addItemsTag [body]   // item-service.?
+POST /item/copyItems [body]   // item-service.?
+POST /item/copyItemsFromSelectedStore [body]   // item-service.?
+POST /item/copyItemsFromStoreToNewVendorMenu [body]   // item-service.?
+POST /item/copyItemsFromStoreToVendorMenu [body]   // item-service.?
+POST /item/copyItemsFromVendorMenu?storeId=${t}   // item-service.?
+GET /item/copyStoreItemsFilters   // item-service.?
+GET /item/createItem ?storeId&vendorMenuId&isAddon   // item-service.?
+POST /item/createItem [body]   // item-service.?
+POST /item/deleteItems [body]   // item-service.?
+GET /item/editItem ?id&storeId&vendorMenuId   // item-service.?
+POST /item/editItem [body]   // item-service.?
+GET /item/editItemPrices ?itemSizeId   // item-service.?
+POST /item/editItemPrices [body]   // item-service.?
+GET /item/hasFutureOrders ?itemSizeIds   // item-service.?
+POST /item/importFuturePrices [body]   // tasks.?
+POST /item/importItems [body]   // item-service.?
+GET /item/inStorePriceDataTables ?storeId   // item-service.?
+POST /item/inStorePriceDataTables [body]   // item-service.?
+GET /item/newEmptyAddon ?sectionType   // item-service.?
+GET /item/newEmptyFuturePrice   // item-service.?
+GET /item/newEmptySection ?sectionType   // item-service.?
+GET /item/newEmptySize   // item-service.?
+POST /item/orderMenu [body]   // item-service.?
+GET /item/orderMenuFilters   // item-service.?
+POST /item/sendForApproval [body]   // item-service.?
+POST /item/updateItemsOrderNumbers [body]   // item-service.?
+POST /item/updateItemStatus [body]   // item-service.?
+POST /item/uploadItems [body]   // item-service.?
+GET /item/vendorItemsFilters   // item-service.?
+GET /item/vendorItemsList   // item-service.?
+GET /item/vendorMenuFilters   // item-service.?
+GET /item/vendorMenuStoreIds ?vendorMenuId   // item-service.?
+GET /item/vendorMenuStoresCount ?vendorMenuId   // item-service.?
+
+## /parent  (17)
+POST /parent/activateGiftCard?giftCardCode=${a}   // parent-service.?
+POST /parent/applyCoupon?couponCode=${a}   // parent-service.?
+POST /parent/applyGiftCard?giftCardCode=${a}   // parent-service.?
+POST /parent/changeSubscriptionStatus?isEnableSubscription=${a}   // parent-service.?
+GET /parent/childrenInfo   // parent-service.?
+GET /parent/coupon   // parent-service.?
+GET /parent/createChild ?isLoggedFromAdminAccount   // parent-service.?
+POST /parent/createChild [body]   // parent-service.?
+POST /parent/deactivateGiftCard?giftCardId=${a}   // parent-service.?
+POST /parent/deleteChild?id=${a}   // parent-service.?
+GET /parent/editChild ?childId   // parent-service.?
+POST /parent/editChild [body]   // parent-service.?
+GET /parent/giftCard   // parent-service.?
+GET /parent/giftCardDataTables   // parent-service.?
+POST /parent/removeCoupon   // parent-service.?
+GET /parent/sendGiftCard   // parent-service.?
+POST /parent/sendGiftCard [body]   // parent-service.?
+
+## /parentReports  (4)
+POST /parentReports/printCalendar [body]   // parent-reports-service.?
+POST /parentReports/printOrders [body]   // parent-reports-service.?
+POST /parentReports/printTransactionReport [body]   // parent-reports-service.?
+POST /parentReports/printTransactions [body]   // parent-reports-service.?
+
+## /payment  (5)
+POST /payment/checkout [body]   // orders-sidebar.?
+POST /payment/initCheckout [body]   // orders-sidebar.?
+GET /payment/treat   // orders-sidebar.?
+POST /payment/treat [body]   // orders-sidebar.?
+GET /payment/treats   // orders-sidebar.?
+
+## /public  (2)
+GET /public/sendGiftCard   // gift-card-public.?
+POST /public/sendGiftCard [body]   // gift-card-public.?
+
+## /quickbooks  (4)
+GET /quickbooks/getRefreshToken   // quickbooks-service.?
+GET /quickbooks/initiateAuth   // quickbooks-service.?
+POST /quickbooks/setAuthTokens [body]   // quickbooks-service.?
+POST /quickbooks/submitInvoice?compositeKey=${t}   // quickbooks-service.?
+
+## /school  (28)
+POST /school/addStudentToSchoolProgram [body]   // school-service.?
+GET /school/creditProgram ?schoolId&period   // school-service.?
+GET /school/deactivateSchoolProgram ?schoolId&schoolProgramId   // school-service.?
+GET /school/donationsList   // school-service.?
+GET /school/extraOrdersPaymentInfo ?schoolId   // school-service.?
+POST /school/extraOrdersPaymentInfo [body]   // school-service.?
+GET /school/fundraisingsList   // school-service.?
+GET /school/generalInfo ?schoolId   // school-service.?
+POST /school/generalInfo [body]   // school-service.?
+GET /school/lastDonation   // school-service.?
+GET /school/lastFundraising   // school-service.?
+POST /school/payStudentAddPayment [body]   // school-service.?
+POST /school/removeStudentFromSchoolProgram [body]   // school-service.?
+GET /school/resendInvitation ?key&schoolId&schoolProgramPaymentId   // school-service.?
+GET /school/resourcesContracts   // school-service.?
+GET /school/resourcesParent   // school-service.?
+GET /school/resourcesPromotional   // school-service.?
+GET /school/resourcesSchool   // school-service.?
+GET /school/resourcesSocialMedia   // school-service.?
+GET /school/schoolPaymentInfo ?schoolId   // school-service.?
+POST /school/schoolPaymentInfo [body]   // school-service.?
+POST /school/schoolProgramPayment [body]   // school-service.?
+GET /school/schoolProgramPaymentList ?schoolId&period   // school-service.?
+GET /school/schoolProgramStudentListFilters ?schoolId&schoolProgramId   // school-service.?
+GET /school/studentsInProgram ?schoolId   // school-service.?
+GET /school/transactionDetails   // school-service.?
+GET /school/transactionsList   // school-service.?
+POST /school/updateStatus [body]   // school-service.?
+
+## /schoolManagement  (11)
+GET /schoolManagement/addSchoolContact ?schoolId   // school-management-service.?
+POST /schoolManagement/addSchoolContact [body]   // school-management-service.?
+POST /schoolManagement/deleteSchoolContact [body]   // school-management-service.?
+GET /schoolManagement/editSchoolContact ?schoolId&contactId   // school-management-service.?
+POST /schoolManagement/editSchoolContact [body]   // school-management-service.?
+POST /schoolManagement/removeSchoolStaffMember [body]   // school-management-service.?
+GET /schoolManagement/requestStaffMember ?schoolId   // school-management-service.?
+POST /schoolManagement/requestStaffMember [body]   // school-management-service.?
+GET /schoolManagement/schoolContactsList ?schoolId   // school-management-service.?
+GET /schoolManagement/schoolSettingsListDataTablesParams ?schoolId   // school-management-service.?
+POST /schoolManagement/updateContactOrder [body]   // school-management-service.?
+
+## /schoolOnboarding  (39)
+GET /schoolOnboarding/activeSchoolOnboarding   // school-onboarding-service.?
+GET /schoolOnboarding/addDeliveryLocation ?schoolId   // school-onboarding-service.?
+POST /schoolOnboarding/addDeliveryLocation [body]   // school-onboarding-service.?
+GET /schoolOnboarding/addEditGrade ?schoolId&schoolOnboardingGradeId&schoolOnboardingTeacherId   // school-onboarding-service.?
+POST /schoolOnboarding/addEditGrade [body]   // school-onboarding-service.?
+GET /schoolOnboarding/addEditTeacher ?schoolId&schoolOnboardingStatusId&schoolOnboardingGradeId&schoolOnboardingTeacherId   // school-onboarding-service.?
+POST /schoolOnboarding/addEditTeacher [body]   // school-onboarding-service.?
+POST /schoolOnboarding/addGrade [body]   // school-onboarding-service.?
+POST /schoolOnboarding/addLunchTime [body]   // school-onboarding-service.?
+POST /schoolOnboarding/addTeacher [body]   // school-onboarding-service.?
+POST /schoolOnboarding/adminApproveSchoolOnboardingSettings [body]   // school-onboarding-service.?
+POST /schoolOnboarding/adminSubmitSchoolOnboardingInfoCalendar?schoolOnboardingStatusId=${a}   // school-onboarding-service.?
+POST /schoolOnboarding/approveSettingRenewals [body]   // school-onboarding-service.?
+GET /schoolOnboarding/calendar ?schoolOnboardingActiveId   // school-onboarding-service.?
+POST /schoolOnboarding/calendar [body]   // school-onboarding-service.?
+POST /schoolOnboarding/closeOnboarding?schoolOnboardingActiveId=${a}&representativeName=${r}&contractVersion=${n}   // school-onboarding-service.?
+GET /schoolOnboarding/creditProgram ?schoolOnboardingActiveId   // school-onboarding-service.?
+POST /schoolOnboarding/creditProgram [body]   // school-onboarding-service.?
+GET /schoolOnboarding/deleteSetting ?schoolId&schoolOnboardingStatusId&schoolOnboardingGradeId&schoolOnboardingTeacherId   // school-onboarding-service.?
+POST /schoolOnboarding/deleteSetting [body]   // school-onboarding-service.?
+GET /schoolOnboarding/generalInfo ?schoolOnboardingActiveId   // school-onboarding-service.?
+POST /schoolOnboarding/generalInfo [body]   // school-onboarding-service.?
+GET /schoolOnboarding/isUniqueDeliveryLocation ?schoolId&name   // school-onboarding-service.?
+GET /schoolOnboarding/isUniqueGrade ?schoolOnboardingStatusId&name   // school-onboarding-service.?
+GET /schoolOnboarding/isUniqueLunchTime ?schoolId&startTime   // school-onboarding-service.?
+GET /schoolOnboarding/isUniqueTeacher ?schoolOnboardingStatusId&name   // school-onboarding-service.?
+GET /schoolOnboarding/schoolContract   // school-onboarding-service.?
+GET /schoolOnboarding/schoolOnboardingInfo ?schoolId&yearId   // school-onboarding-service.?
+POST /schoolOnboarding/schoolOnboardingInfo [body]   // school-onboarding-service.?
+GET /schoolOnboarding/schoolOnboardingInfoFilters ?schoolId&yearId   // school-onboarding-service.?
+GET /schoolOnboarding/schoolOnboardingSettingsBase ?schoolId   // school-onboarding-service.?
+GET /schoolOnboarding/schoolOnboardingSettingsFiles ?schoolId   // school-onboarding-service.?
+GET /schoolOnboarding/settingList ?schoolOnboardingActiveId   // school-onboarding-service.?
+GET /schoolOnboarding/settings ?schoolOnboardingActiveId   // school-onboarding-service.?
+POST /schoolOnboarding/settings [body]   // school-onboarding-service.?
+POST /schoolOnboarding/skipStep [body]   // school-onboarding-service.?
+GET /schoolOnboarding/startDate ?schoolOnboardingActiveId   // school-onboarding-service.?
+POST /schoolOnboarding/startDate [body]   // school-onboarding-service.?
+POST /schoolOnboarding/updateSetting [body]   // school-onboarding-service.?
+
+## /schoolVendorReports  (12)
+POST /schoolVendorReports/consolidatedDistributionReport [body]   // school-vendor-reports-service.?
+GET /schoolVendorReports/deliveryDataReport ?eventId&onlyPaidItems   // school-vendor-reports-service.?
+GET /schoolVendorReports/deliveryDetailsReport ?eventId&clientDate   // school-vendor-reports-service.?
+GET /schoolVendorReports/distributionReport ?eventId&clientDate&onlyPaidItems   // school-vendor-reports-service.?
+GET /schoolVendorReports/labelsReport ?eventId&onlyPaidItems   // school-vendor-reports-service.?
+GET /schoolVendorReports/packagingReport ?eventId&clientDate&onlyPaidItems   // school-vendor-reports-service.?
+GET /schoolVendorReports/prepReport ?eventId&clientDate&onlyPaidItems   // school-vendor-reports-service.?
+GET /schoolVendorReports/schoolDonationReport ?schoolId&reportDate   // school-vendor-reports-service.?
+GET /schoolVendorReports/schoolFundraisingReport ?fundraisingId   // school-vendor-reports-service.?
+GET /schoolVendorReports/schoolOriginalSettingsReport ?schoolId   // school-vendor-reports-service.?
+GET /schoolVendorReports/schoolSettingsReport ?schoolId   // school-vendor-reports-service.?
+POST /schoolVendorReports/updateLastReportDate [body]   // school-vendor-reports-service.?
+
+## /upload  (6)
+POST /upload/deleteCalendarFolder [body]   // upload-service.?
+POST /upload/deleteFile?path=${a}   // upload-service.?
+POST /upload/deleteFolder?path=${a}   // upload-service.?
+GET /upload/deleteImage ?imageName&imageUploadType&imageUploadRenewalKey   // upload-service.?
+POST /upload/uploadFile [body]   // upload-service.?
+POST /upload/uploadImage [body]   // upload-service.?
+
+## /vendor  (11)
+POST /vendor/completeOnboarding   // vendor-service.?
+GET /vendor/contract   // vendor-service.?
+GET /vendor/dailyPayments   // vendor-service.?
+GET /vendor/dailyPaymentsList ?period&storeId   // vendor-service.?
+GET /vendor/dailyPaymentsSummary ?period&storeId   // vendor-service.?
+GET /vendor/dashboardPaymentsFilters   // vendor-service.?
+GET /vendor/invoices   // vendor-service.?
+GET /vendor/invoicesList ?period&storeId   // vendor-service.?
+GET /vendor/isStoreApproved   // vendor-service.?
+GET /vendor/notSubmittedInvoicesList ?storeId   // vendor-service.?
+POST /vendor/resources   // vendor-service.?
+
+## /vendorReports  (6)
+GET /vendorReports/averageOrdersReport   // vendor-reports-service.?
+GET /vendorReports/creditsReport   // vendor-reports-service.?
+GET /vendorReports/invoiceReport ?schoolId&storeId&date&clientDate   // vendor-reports-service.?
+GET /vendorReports/paymentDetailsReport ?eventId&clientDate   // vendor-reports-service.?
+GET /vendorReports/paymentsReport   // vendor-reports-service.?
+GET /vendorReports/salesReport   // vendor-reports-service.?

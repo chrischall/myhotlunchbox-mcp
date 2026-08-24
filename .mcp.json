@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "myhotlunchbox": {
+      "command": "node",
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/dist/index.js"
+      ],
+      "env": {
+        "MYHOTLUNCHBOX_USERNAME": "${MYHOTLUNCHBOX_USERNAME}",
+        "MYHOTLUNCHBOX_PASSWORD": "${MYHOTLUNCHBOX_PASSWORD}"
+      }
+    }
+  }
+}

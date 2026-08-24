@@ -1,0 +1,22 @@
+{
+  "name": "myhotlunchbox-mcp",
+  "displayName": "My Hot Lunchbox",
+  "version": "0.0.0",
+  "description": "MCP server for My Hot Lunchbox — order school lunches, manage students, and track payments via natural language",
+  "author": {
+    "name": "Chris Hall",
+    "email": "chris.c.hall@gmail.com"
+  },
+  "homepage": "https://github.com/chrischall/myhotlunchbox-mcp",
+  "repository": "https://github.com/chrischall/myhotlunchbox-mcp",
+  "license": "MIT",
+  "keywords": [
+    "myhotlunchbox",
+    "school-lunch",
+    "lunch-ordering",
+    "mcp",
+    "parent"
+  ],
+  "skills": "./skills/",
+  "mcp": "./.mcp.json"
+}

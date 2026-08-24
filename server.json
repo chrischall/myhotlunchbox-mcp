@@ -1,0 +1,43 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.chrischall/myhotlunchbox-mcp",
+  "description": "My Hot Lunchbox school lunch ordering for Claude — calendar, cart, orders, payments",
+  "repository": {
+    "url": "https://github.com/chrischall/myhotlunchbox-mcp",
+    "source": "github"
+  },
+  "version": "0.0.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "myhotlunchbox-mcp",
+      "version": "0.0.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "MYHOTLUNCHBOX_USERNAME",
+          "description": "Email address you sign in to ordernow.myhotlunchbox.com with",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": false
+        },
+        {
+          "name": "MYHOTLUNCHBOX_PASSWORD",
+          "description": "Password for that My Hot Lunchbox account",
+          "isRequired": true,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "MYHOTLUNCHBOX_BASE_URL",
+          "description": "Override the app origin (defaults to https://ordernow.myhotlunchbox.com)",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}

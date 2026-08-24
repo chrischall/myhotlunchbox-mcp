@@ -1,0 +1,57 @@
+{
+  "name": "myhotlunchbox-mcp",
+  "version": "0.0.0",
+  "mcpName": "io.github.chrischall/myhotlunchbox-mcp",
+  "description": "My Hot Lunchbox MCP server for Claude — developed and maintained by AI (Claude Code)",
+  "author": "Claude Code (AI) <https://www.anthropic.com/claude>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chrischall/myhotlunchbox-mcp.git"
+  },
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "ai",
+    "myhotlunchbox",
+    "school-lunch",
+    "lunch-ordering",
+    "parent",
+    "k12",
+    "meal-plan"
+  ],
+  "type": "module",
+  "bin": {
+    "myhotlunchbox-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    ".claude-plugin",
+    "skills/",
+    ".mcp.json",
+    "server.json"
+  ],
+  "scripts": {
+    "build": "tsc && npm run bundle",
+    "bundle": "esbuild src/index.ts --bundle --platform=node --format=esm --external:dotenv --outfile=dist/bundle.js",
+    "dev": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@chrischall/mcp-utils": "^0.15.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "dotenv": "^17.4.0",
+    "zod": "^4.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "@vitest/coverage-v8": "^4.1.2",
+    "esbuild": "^0.28.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.2"
+  }
+}

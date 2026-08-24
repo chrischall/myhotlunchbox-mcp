@@ -1,0 +1,216 @@
+{
+  "$schema": "https://raw.githubusercontent.com/anthropics/dxt/main/dist/mcpb-manifest.schema.json",
+  "manifest_version": "0.3",
+  "name": "myhotlunchbox-mcp",
+  "display_name": "My Hot Lunchbox",
+  "version": "0.0.0",
+  "description": "School lunch ordering for Claude — browse the lunch calendar, manage students, place and change orders, and track payments on a My Hot Lunchbox parent account",
+  "author": {
+    "name": "Chris Chall",
+    "email": "chris.c.hall@gmail.com",
+    "url": "https://github.com/chrischall"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/chrischall/myhotlunchbox-mcp"
+  },
+  "homepage": "https://github.com/chrischall/myhotlunchbox-mcp",
+  "support": "https://github.com/chrischall/myhotlunchbox-mcp/issues",
+  "license": "MIT",
+  "keywords": [
+    "myhotlunchbox",
+    "school-lunch",
+    "lunch-ordering",
+    "parent",
+    "k12"
+  ],
+  "server": {
+    "type": "node",
+    "entry_point": "dist/bundle.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/dist/bundle.js"
+      ],
+      "env": {
+        "MYHOTLUNCHBOX_USERNAME": "${user_config.myhotlunchbox_username}",
+        "MYHOTLUNCHBOX_PASSWORD": "${user_config.myhotlunchbox_password}"
+      }
+    }
+  },
+  "user_config": {
+    "myhotlunchbox_username": {
+      "type": "string",
+      "title": "My Hot Lunchbox Email",
+      "description": "The email address you sign in to ordernow.myhotlunchbox.com with",
+      "required": true,
+      "sensitive": false
+    },
+    "myhotlunchbox_password": {
+      "type": "string",
+      "title": "My Hot Lunchbox Password",
+      "description": "The password for that account",
+      "required": true,
+      "sensitive": true
+    }
+  },
+  "compatibility": {
+    "runtimes": {
+      "node": ">=22.5"
+    }
+  },
+  "tools": [
+    {
+      "name": "mhlb_apply_coupon",
+      "description": "Apply a coupon code to the account."
+    },
+    {
+      "name": "mhlb_apply_gift_card",
+      "description": "Redeem a gift card code onto the account balance."
+    },
+    {
+      "name": "mhlb_checkout",
+      "description": "PAY for the lunches in the cart."
+    },
+    {
+      "name": "mhlb_create_order",
+      "description": "Place a lunch order into the cart."
+    },
+    {
+      "name": "mhlb_create_student",
+      "description": "Add a student to the account."
+    },
+    {
+      "name": "mhlb_delete_order",
+      "description": "Cancel a lunch order."
+    },
+    {
+      "name": "mhlb_delete_student",
+      "description": "Remove a student from the account."
+    },
+    {
+      "name": "mhlb_get_calendar",
+      "description": "Get the lunch calendar for the account over a date range: which days are open for ordering, already ordered, paid, in the cart, subscribed or closed, per student."
+    },
+    {
+      "name": "mhlb_get_cart",
+      "description": "Get the shopping cart — lunches added but not yet paid for."
+    },
+    {
+      "name": "mhlb_get_cart_tabs",
+      "description": "Get the valid filter values for mhlb_get_cart — the ordering periods (semesters) and status tabs, with which one is selected by default."
+    },
+    {
+      "name": "mhlb_get_coupon",
+      "description": "Get the coupon currently applied to the account, if any."
+    },
+    {
+      "name": "mhlb_get_day",
+      "description": "Get what a student has ordered on one specific date — the items, sizes, quantities, add-ons and prices."
+    },
+    {
+      "name": "mhlb_get_menu",
+      "description": "Get the orderable menu for one student on one date — the vendor, items, sizes, add-ons, prices and the ordering deadline."
+    },
+    {
+      "name": "mhlb_get_order",
+      "description": "Get an existing order in editable form — the model mhlb_update_order expects back."
+    },
+    {
+      "name": "mhlb_get_order_form",
+      "description": "Get the blank order model for a student on a specific lunch event — the exact structure that mhlb_create_order expects back, pre-populated with the available items."
+    },
+    {
+      "name": "mhlb_get_student_form",
+      "description": "Get the editable profile for one student — school, grade, teacher, delivery location, allergies and the dropdown options for each."
+    },
+    {
+      "name": "mhlb_get_subscription_settings",
+      "description": "Get the account’s subscription configuration — whether recurring ordering is on, and its terms."
+    },
+    {
+      "name": "mhlb_get_transaction",
+      "description": "Get the line-item detail of one transaction — which lunches it paid for."
+    },
+    {
+      "name": "mhlb_init_checkout",
+      "description": "Start checkout for the cart: returns the order summary, totals, taxes, applied credits and the available payment methods."
+    },
+    {
+      "name": "mhlb_list_gift_cards",
+      "description": "List gift cards on the account — codes, balances and status."
+    },
+    {
+      "name": "mhlb_list_past_deliveries",
+      "description": "List past (archived) lunch deliveries for the account."
+    },
+    {
+      "name": "mhlb_list_students",
+      "description": "List the students on the account: id, first name, school, grade/teacher, whether they have orders, and whether the profile is inactive or still an unaccepted invite."
+    },
+    {
+      "name": "mhlb_list_subscriptions",
+      "description": "List upcoming lunch subscriptions — the recurring orders that will be placed and charged automatically."
+    },
+    {
+      "name": "mhlb_list_transactions",
+      "description": "List payment transactions on the account — date, amount, and what was paid for."
+    },
+    {
+      "name": "mhlb_list_upcoming_deliveries",
+      "description": "List upcoming lunch deliveries for the account."
+    },
+    {
+      "name": "mhlb_list_vendors",
+      "description": "List the food vendors matched to the account’s schools — who is actually able to deliver lunch."
+    },
+    {
+      "name": "mhlb_new_student_form",
+      "description": "Get a blank student profile plus the school/grade/teacher dropdown options, ready to fill in and pass to mhlb_create_student."
+    },
+    {
+      "name": "mhlb_next_delivery",
+      "description": "Get the next scheduled lunch delivery for the account — date, school, and what is coming."
+    },
+    {
+      "name": "mhlb_print_calendar",
+      "description": "Generate the printable lunch calendar for a date range."
+    },
+    {
+      "name": "mhlb_print_orders",
+      "description": "Generate the printable orders report for a date range — the same PDF the site’s Print button produces."
+    },
+    {
+      "name": "mhlb_print_transactions",
+      "description": "Generate the printable transactions report for a date range."
+    },
+    {
+      "name": "mhlb_remove_coupon",
+      "description": "Remove the coupon currently applied to the account."
+    },
+    {
+      "name": "mhlb_session_reset",
+      "description": "Discard the cached My Hot Lunchbox access token so the next tool call signs in again."
+    },
+    {
+      "name": "mhlb_set_subscription_enabled",
+      "description": "Turn recurring lunch subscriptions on or off for the account."
+    },
+    {
+      "name": "mhlb_unsubscribe_order",
+      "description": "Stop a recurring subscription for a specific lunch order."
+    },
+    {
+      "name": "mhlb_update_order",
+      "description": "Change an existing lunch order."
+    },
+    {
+      "name": "mhlb_update_student",
+      "description": "Update a student profile."
+    },
+    {
+      "name": "mhlb_whoami",
+      "description": "Get the signed-in My Hot Lunchbox account: name, email, role, number of students, pending order count, account credit balances, and whether subscriptions are enabled."
+    }
+  ]
+}

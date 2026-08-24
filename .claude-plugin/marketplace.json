@@ -1,0 +1,35 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "myhotlunchbox-mcp",
+  "owner": {
+    "name": "Chris Hall",
+    "email": "chris.c.hall@gmail.com"
+  },
+  "metadata": {
+    "description": "MCP server for My Hot Lunchbox — order school lunches, manage students, and track payments via natural language",
+    "version": "0.0.0"
+  },
+  "plugins": [
+    {
+      "name": "myhotlunchbox-mcp",
+      "displayName": "My Hot Lunchbox",
+      "source": "./",
+      "description": "MCP server for My Hot Lunchbox — school lunch calendar, ordering, and payments. Signs in server-side with the parent account credentials.",
+      "version": "0.0.0",
+      "author": {
+        "name": "Chris Hall"
+      },
+      "homepage": "https://github.com/chrischall/myhotlunchbox-mcp",
+      "repository": "https://github.com/chrischall/myhotlunchbox-mcp",
+      "license": "MIT",
+      "keywords": [
+        "myhotlunchbox",
+        "school-lunch",
+        "lunch-ordering",
+        "mcp",
+        "parent"
+      ],
+      "category": "productivity"
+    }
+  ]
+}
