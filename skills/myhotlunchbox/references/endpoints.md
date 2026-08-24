@@ -128,7 +128,7 @@ model, edit it, post it back whole, then re-read to confirm.
 |---|---|---|
 | Place an order | `GET /event/createOrder?eventId=&studentId=` | `POST /event/createOrder` |
 | Change an order | `GET /event/editOrder?orderId=` | `POST /event/editOrder` |
-| Cancel an order | — | `POST /event/deleteOrder` |
+| Cancel an order | — | `POST /event/deleteOrder` — body below, **not** the order model |
 | Add a student | `GET /parent/createChild` | `POST /parent/createChild` |
 | Edit a student | `GET /parent/editChild?childId=` | `POST /parent/editChild` |
 | Remove a student | — | `POST /parent/deleteChild?id=` |
@@ -136,11 +136,38 @@ model, edit it, post it back whole, then re-read to confirm.
 | Apply a coupon | — | `POST /parent/applyCoupon?couponCode=` |
 | Remove the coupon | — | `POST /parent/removeCoupon` |
 | Toggle subscriptions | `GET /event/subscription` | `POST /parent/changeSubscriptionStatus?isEnableSubscription=` |
-| Stop one subscription | `GET /event/upcomingSubscriptions` | `POST /event/unsubcribeOrder` |
+| Stop one subscription | `GET /event/upcomingSubscriptions` | `POST /event/unsubcribeOrder` — same body as deleteOrder |
 | Price the cart | — | `POST /payment/initCheckout` |
 | **Pay** | — | `POST /payment/checkout` |
 
 `POST /event/unsubcribeOrder` is spelled that way upstream — the typo is theirs.
+
+Cancelling and unsubscribing take a small identifier payload, **not** the order
+model that create/edit round-trip. Captured from the site's own `order-mixin`:
+
+```sh
+# isRepeated: true acts on the whole recurring series, not just this date.
+mhlb_post /event/deleteOrder \
+  '{"orderId":17284377,"eventDate":"2026-08-26","studentId":111627,"isRepeated":false,"isSubscribed":false}'
+```
+
+Checkout takes `{orderIds, checkoutType, couponCode, giftCardCode, schoolDonations}`,
+with the nulls sent explicitly, plus `{availableCredits, idempotencyKey, stripeToken}`
+on `/payment/checkout`:
+
+```sh
+mhlb_post /payment/initCheckout \
+  '{"orderIds":[123],"checkoutType":null,"couponCode":null,"giftCardCode":null,"schoolDonations":null}'
+```
+
+Two things about paying:
+
+- **`stripeToken` cannot be produced outside a browser.** The site mints it with
+  Stripe.js, and only when paying by a NEW card. Server-side you can only pay
+  with a card already saved on the account.
+- **`idempotencyKey` is yours to generate** — the site uses
+  `"$(uuidgen | tr A-Z a-z)-$(date +%s000)"`. Reuse the SAME key when retrying an
+  ambiguous checkout; a fresh one risks a second charge.
 
 `POST /payment/checkout` charges a real payment method. Price with
 `initCheckout` first, read the total it returns, and confirm that figure before

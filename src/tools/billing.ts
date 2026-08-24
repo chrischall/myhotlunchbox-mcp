@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { MhlbClient } from '../client.js';
 import { jsonResult, preview, UNVERIFIED } from './_shared.js';
+import { OrderRefShape, orderRefBody } from './orders.js';
 
 export function registerBillingTools(server: McpServer, client: MhlbClient): void {
   server.registerTool(
@@ -82,17 +83,19 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
     {
       description: 'Stop a recurring subscription for a specific lunch order.' + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Unsubscribe an order', readOnly: false, openWorld: true }),
-      inputSchema: {
-        order: z
-          .record(z.string(), z.unknown())
-          .describe('The subscription identifier payload, from mhlb_list_subscriptions.'),
-        confirm: schemaConfirm,
-      },
+      // Same identifier payload as mhlb_delete_order — the site's order-mixin
+      // routes to whichever endpoint by `isSubscribed`, with one body shape.
+      inputSchema: { ...OrderRefShape, confirm: schemaConfirm },
     },
     // The upstream route really is spelled `unsubcribeOrder`.
-    async ({ order, confirm }) => {
-      if (!confirm) return preview('Unsubscribe order', { method: 'POST', path: '/event/unsubcribeOrder', body: order });
-      return jsonResult(await client.write('/event/unsubcribeOrder', order));
+    async ({ confirm, ...ref }) => {
+      const body = orderRefBody({ ...ref, isSubscribed: ref.isSubscribed ?? true });
+      if (!confirm) {
+        return preview('Unsubscribe order', { method: 'POST', path: '/event/unsubcribeOrder', body }, [
+          'isRepeated: true stops the whole recurring series, not just this date.',
+        ]);
+      }
+      return jsonResult(await client.write('/event/unsubcribeOrder', body));
     },
   );
 

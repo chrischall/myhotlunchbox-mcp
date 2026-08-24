@@ -71,18 +71,38 @@ directory); existing files are never overwritten.
 Every mutating tool takes `confirm`. Without `confirm: true` it makes **no**
 network call and returns a dry-run preview of exactly what it would send.
 
-`mhlb_checkout` charges a real payment method, so it takes one extra safeguard:
-an `expectedTotal` that must match the total in the payment payload. Price the
-cart with `mhlb_init_checkout`, read the total it reports, and pass that figure.
-A stale cart fails closed instead of paying a different amount.
+`mhlb_checkout` charges a real payment method. The server prices the charge from
+`orderIds`, so nothing client-side can bind the amount — there is no total in the
+request to check against. `expectedTotal` is therefore **attribution, not a
+guard**: you state what you expected, and it is recorded in the dry run and in
+the result so an unexpected charge is traceable to the call that made it. What
+the tool does refuse outright is paying a non-zero total with no `orderIds`.
 
-### Unverified writes
+### Writes: shapes captured, acceptance unverified
 
-The write endpoints' paths, verbs and query parameters were extracted from the
-site's own compiled API client and are reliable. Their **request bodies have not
-been exercised against a live account** — every such tool says so in its
-description. Inspect the dry-run preview before confirming, and re-read the
-resource afterwards: a `200` is not proof a write persisted.
+`npm run capture:writes` runs every mutating tool against a local proxy that
+forwards reads to the real service but answers writes itself, so the payloads
+are built from genuine server models and nothing happens upstream. It also
+proves all 13 refuse to send anything without `confirm: true`.
+
+What that established, and corrected: `mhlb_delete_order` and
+`mhlb_unsubscribe_order` take `{orderId, eventDate, studentId, isRepeated,
+isSubscribed}` — not the order model — and checkout takes
+`{orderIds, checkoutType, couponCode, giftCardCode, schoolDonations}`.
+
+**What is still unverified is whether the server accepts these bodies.** Shape
+is not acceptance; only a real write shows that, and none has been made. Inspect
+the dry-run preview before confirming, and re-read afterwards — a `200` is not
+proof a write persisted.
+
+Two limits on `mhlb_checkout` specifically:
+
+- It can only pay with a card **already saved** on the account. Paying with a
+  new card needs a Stripe token minted by Stripe.js in a browser, which no
+  server-side client can produce.
+- It generates an idempotency key and returns it. If a checkout fails
+  ambiguously, retry with that same `idempotencyKey` rather than a fresh call —
+  that is what stops a retry becoming a second charge.
 
 ## Ordering is read-modify-write
 
