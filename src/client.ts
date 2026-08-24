@@ -11,6 +11,14 @@ export interface RequestOptions {
   body?: unknown;
 }
 
+/** `%PDF` — the four magic bytes every PDF starts with. */
+const PDF_MAGIC = [0x25, 0x50, 0x44, 0x46];
+
+/** Whether a body really is a PDF, regardless of what the header claimed. */
+export function isPdf(bytes: Uint8Array): boolean {
+  return bytes.length >= PDF_MAGIC.length && PDF_MAGIC.every((b, i) => bytes[i] === b);
+}
+
 /**
  * Build a query string, dropping unset entries so an absent optional never
  * serializes as the literal `"undefined"`.
@@ -178,12 +186,18 @@ export class MhlbClient {
     const contentType = res.headers.get('content-type') ?? 'application/octet-stream';
     const bytes = new Uint8Array(await res.arrayBuffer());
 
-    // A 200 carrying HTML is the session having lapsed into a sign-in page.
-    // Writing that to disk as a .pdf would look like success.
-    if (/text\/html|application\/json/i.test(contentType)) {
+    // Check the bytes, not the header. A deny-list of content types misses
+    // `text/plain` and a response with no content-type at all, either of which
+    // would be written to disk as a `.pdf` and look like success. The magic
+    // bytes are already in hand, and they are total.
+    if (!isPdf(bytes)) {
       throw new McpToolError(
-        `My Hot Lunchbox returned ${contentType} for POST ${path}, not a document.`,
-        { hint: 'The session may have lapsed. Run mhlb_session_reset and retry.' },
+        `My Hot Lunchbox returned ${contentType} for POST ${path}, not a PDF.`,
+        {
+          hint:
+            'The session may have lapsed into a sign-in page. Run mhlb_session_reset and retry; ' +
+            'if it persists, check the request arguments.',
+        },
       );
     }
 
