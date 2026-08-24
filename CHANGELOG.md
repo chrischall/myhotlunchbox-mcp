@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0](https://github.com/chrischall/myhotlunchbox-mcp/compare/v0.1.1...v0.2.0) (2026-08-24)
+
+
+### Features
+
+* declare hosting requirements in mcp-host.yaml ([#10](https://github.com/chrischall/myhotlunchbox-mcp/issues/10)) ([7044ff1](https://github.com/chrischall/myhotlunchbox-mcp/commit/7044ff1b8eab050d1a2c2bf3eec7866800baadc4))
+
+
+### Documentation
+
+* make the mint.yaml filename note durable ([#14](https://github.com/chrischall/myhotlunchbox-mcp/issues/14)) ([8364139](https://github.com/chrischall/myhotlunchbox-mcp/commit/836413942985f3c57f515217bc7e06df7e16b613))
+
 ## [0.1.1](https://github.com/chrischall/myhotlunchbox-mcp/compare/v0.1.0...v0.1.1) (2026-08-24)
 
 

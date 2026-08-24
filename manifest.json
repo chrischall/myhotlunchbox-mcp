@@ -3,7 +3,7 @@
   "manifest_version": "0.3",
   "name": "myhotlunchbox-mcp",
   "display_name": "My Hot Lunchbox",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "School lunch ordering for Claude — browse the lunch calendar, manage students, place and change orders, and track payments on a My Hot Lunchbox parent account",
   "author": {
     "name": "Chris Chall",
