@@ -38,6 +38,7 @@ CLAUDE.md
 
 # Registry / plugin / skill manifests (not used at runtime)
 server.json
+mcp-host.yaml
 plugin.json
 .claude-plugin/
 .mcp.json

@@ -1,0 +1,62 @@
+# How this MCP wants to be hosted on mcp-host (see mcp-host/docs/HOSTING-MANIFEST.md).
+#
+# This file is a PROPOSAL, never an application. It is read at the resolved pin
+# by the registration preview and rendered for a human; nothing here changes a
+# registration until an owner saves it through the ordinary write path. It is
+# NOT covered by the tarball integrity check, so it carries no secrets and
+# nothing that decides what runs.
+version: 1
+
+name: My Hot Lunchbox
+slug: myhotlunchbox
+summary: School lunch calendar, ordering and payments for a My Hot Lunchbox parent account.
+
+env:
+  - name: MYHOTLUNCHBOX_USERNAME
+    secret: false
+    required: true
+    help: The email address you sign in to ordernow.myhotlunchbox.com with.
+
+  - name: MYHOTLUNCHBOX_PASSWORD
+    secret: true
+    required: true
+    # No default, deliberately: this is the credential itself.
+    help: >-
+      Password for that account. Used for a server-side OAuth2 password grant;
+      the refresh token it returns renews the session, so no browser or
+      extension is involved and nothing is written to disk.
+
+  - name: MYHOTLUNCHBOX_BASE_URL
+    secret: false
+    required: false
+    default: https://ordernow.myhotlunchbox.com
+    help: Origin of the ordering app. Override only if it moves.
+
+  - name: MYHOTLUNCHBOX_OUTPUT_DIR
+    secret: false
+    required: false
+    # No default: on a hosted child the working directory is the runner's, not
+    # the caller's, so a written file is somewhere they cannot reach. Left unset
+    # so the path in the result is at least honest about being server-side.
+    help: >-
+      Directory the three print tools write PDFs into. On a hosted registration
+      the filesystem belongs to the runner, so prefer calling those tools with
+      inline: true and taking the bytes back in the result.
+
+state:
+  # Sessions live in memory for the life of the child and are re-established by
+  # signing in again, so a cold start costs one login and loses nothing.
+  dataDir: false
+
+identity:
+  # Credentials are per-registration secrets, not per-caller, so one shared
+  # child is correct. Setting this true would cost a uid and a state dir per
+  # caller and buy nothing.
+  perUserChild: false
+
+egress:
+  # Every request goes to the ordering app; there is no other upstream, no
+  # analytics and no browser bridge. Honoured on the isolated tier, a proposal
+  # elsewhere.
+  allow:
+    - ordernow.myhotlunchbox.com

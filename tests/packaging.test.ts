@@ -29,6 +29,14 @@ describe('npm publishability', () => {
     expect(pkg.files).toContain('skills/');
   });
 
+  // mcp-host's registration preview fetches this from
+  // cdn.jsdelivr.net/npm/<pkg>@<version>/mcp-host.yaml, which serves the
+  // published tarball — so leaving it out of `files` makes the manifest
+  // invisible to hosting without any error to notice.
+  it('ships mcp-host.yaml so the hosting preview can read it', () => {
+    expect(pkg.files).toContain('mcp-host.yaml');
+  });
+
   it('points bin at the tsc entry point, not dist/src', () => {
     expect(pkg.bin['myhotlunchbox-mcp']).toBe('dist/index.js');
   });
