@@ -101,7 +101,9 @@ mhlb_pdf /parentReports/printOrders \
   '{"orderStatus":1,"eventDate":"2026-09-14","studentIds":[111627]}' \
   'Orders Details.pdf'
 
-# One transaction receipt — send the whole record from transactionsList
+# One transaction receipt — send the record from transactionDetails.
+# (A transactionsList ROW is a different shape and renders a thinner PDF;
+#  the list is only used here to get the id.)
 ID=$(mhlb_get /event/transactionsList | jq -r '.transactions[0].id')
 mhlb_get "/event/transactionDetails?id=$ID" | jq -c '. + {isCreditType:false}' > tx.json
 mhlb_pdf /parentReports/printTransactions "$(cat tx.json)" 'Transaction.pdf'

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createTestHarness, parseToolResult } from '@chrischall/mcp-utils/test';
-import { MhlbClient } from '../src/client.js';
+import { isPdf, MhlbClient } from '../src/client.js';
 import { midpoint, nonClobberingPath, outputDir, registerReportTools } from '../src/tools/reports.js';
 import { jsonResponse, testConfig, tokenHandler } from './helpers.js';
 
@@ -265,6 +265,41 @@ describe('report tools', () => {
     } finally {
       await h.close();
     }
+  });
+
+  it.each([
+    ['text/plain', 'text/plain'],
+    ['no content-type at all', null],
+    ['a JSON error body served as octet-stream', 'application/octet-stream'],
+  ])('rejects a non-PDF 200 (%s) instead of writing it to disk', async (_label, ct) => {
+    process.env.MYHOTLUNCHBOX_OUTPUT_DIR = scratch();
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (tokenHandler()(url)) return tokenHandler()(url) as Response;
+      return new Response('not a pdf at all', {
+        status: 200,
+        ...(ct ? { headers: { 'content-type': ct } } : {}),
+      });
+    });
+    const client = new MhlbClient(testConfig(), fetchSpy as unknown as typeof fetch);
+    const h = await createTestHarness((server) => registerReportTools(server, client));
+    try {
+      const result = await h.callTool('mhlb_print_calendar', {
+        startDate: '2026-09-01',
+        endDate: '2026-09-30',
+        studentIds: [7],
+      });
+      expect(result.isError).toBe(true);
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('isPdf checks the bytes, not the header', () => {
+    expect(isPdf(new TextEncoder().encode('%PDF-1.4 ...'))).toBe(true);
+    expect(isPdf(new TextEncoder().encode('<html>'))).toBe(false);
+    expect(isPdf(new TextEncoder().encode('%PD'))).toBe(false);
+    expect(isPdf(new Uint8Array(0))).toBe(false);
   });
 
   it('classifies a 429 on the binary path the same as on the JSON path', async () => {
