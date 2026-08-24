@@ -31,8 +31,9 @@ export function* candidateNames(filename: string): Generator<string> {
   for (let n = 2; ; n += 1) yield `${stem} (${n})${ext}`;
 }
 
-/** How many suffixed names to try before giving up. */
-const MAX_NAME_ATTEMPTS = 1000;
+/** How many suffixed names to try before giving up. Exported so tests track
+ * the real limit rather than hardcoding a copy of it. */
+export const MAX_NAME_ATTEMPTS = 1000;
 
 /**
  * Write the report without ever overwriting an existing file.
