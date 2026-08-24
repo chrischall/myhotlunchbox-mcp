@@ -208,11 +208,9 @@ Order status enum for `printOrders` and the cart: `Pending: 0, Paid: 1, Credited
 **STILL UNVERIFIED** — that the server *accepts* any of these bodies. Shape is
 not acceptance: only a real write shows that, and none has been made.
 
-Previously, of every write endpoint: Their paths, verbs and query parameters
-come from the compiled client and are reliable; their **request bodies** have
-not been exercised against a live account. Each corresponding tool carries the
-same marker in its description and refuses to act without `confirm: true`,
-returning a dry-run preview of exactly what it would send.
+Every write tool carries the `UNVERIFIED` marker in its description and refuses
+to act without `confirm: true`, returning a dry-run preview of exactly what it
+would send.
 
 To flip a write to verified, exercise it, then update *all* of: this file, the
 tool's description (`UNVERIFIED` in `src/tools/_shared.ts` is appended per tool),

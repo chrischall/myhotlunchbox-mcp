@@ -36,7 +36,10 @@ export const OrderRefShape = {
   isSubscribed: z
     .boolean()
     .optional()
-    .describe('Whether the order is a subscription. Defaults to false.'),
+    .describe(
+      'Whether the order is a subscription. Defaults to false for mhlb_delete_order and true for ' +
+      'mhlb_unsubscribe_order, matching what each is for.',
+    ),
 };
 
 export function orderRefBody(ref: {

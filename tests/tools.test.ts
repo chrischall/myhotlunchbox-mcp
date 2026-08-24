@@ -186,6 +186,39 @@ describe('checkout safety', () => {
     }
   });
 
+  it('nests the upstream response so a non-object body is not mangled', async () => {
+    // The checkout response shape is unverified. Spreading it would turn a
+    // string or array into indexed keys and lose it.
+    const { harness } = await harnessWithSpy('receipt-12345');
+    try {
+      const body = parseToolResult<{ result: unknown; expectedTotal: number }>(
+        await harness.callTool('mhlb_checkout', { orderIds: [1], expectedTotal: 4, confirm: true }),
+      );
+      expect(body.result).toBe('receipt-12345');
+      expect(body.expectedTotal).toBe(4);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  it('does not let our own fields shadow same-named server fields', async () => {
+    const { harness } = await harnessWithSpy({ idempotencyKey: 'SERVER-KEY', expectedTotal: 999 });
+    try {
+      const body = parseToolResult<{
+        result: { idempotencyKey: string; expectedTotal: number };
+        idempotencyKey: string;
+        expectedTotal: number;
+      }>(await harness.callTool('mhlb_checkout', { orderIds: [1], expectedTotal: 4, confirm: true }));
+
+      expect(body.result.idempotencyKey).toBe('SERVER-KEY');
+      expect(body.result.expectedTotal).toBe(999);
+      expect(body.idempotencyKey).not.toBe('SERVER-KEY');
+      expect(body.expectedTotal).toBe(4);
+    } finally {
+      await harness.close();
+    }
+  });
+
   it('refuses to pay a non-zero total with no orderIds', async () => {
     const { harness, fetchSpy } = await harnessWithSpy();
     try {

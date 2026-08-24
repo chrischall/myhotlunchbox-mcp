@@ -7,10 +7,14 @@ import { jsonResult, preview, UNVERIFIED } from './_shared.js';
 
 /**
  * Checkout is the only pair of tools that moves money. Both are confirm-gated
- * like every other write, and `mhlb_checkout` additionally requires the caller
- * to restate the amount it believes it is paying: a stale cart read that no
- * longer matches the server's total fails closed instead of silently charging
- * a different figure.
+ * like every other write.
+ *
+ * There is deliberately no amount check. The server prices the charge from
+ * `orderIds`; the request carries no total, so anything compared here would be
+ * the caller's own input against itself. `expectedTotal` is attribution — it is
+ * echoed in the dry run and returned with the result, so a surprising charge is
+ * traceable to the call that made it. The one real refusal is paying a non-zero
+ * total with no `orderIds`.
  */
 export function registerCheckoutTools(server: McpServer, client: MhlbClient): void {
   server.registerTool(
@@ -42,9 +46,9 @@ export function registerCheckoutTools(server: McpServer, client: MhlbClient): vo
     {
       description:
         'PAY for the lunches in the cart. This charges a real payment method on the My Hot Lunchbox account. ' +
-        'Run mhlb_init_checkout first, read the total it returns, and pass that same total as expectedTotal — ' +
-        'and pass that figure as expectedTotal. Only a card ALREADY SAVED on the account can be used: paying ' +
-        'with a new card needs a Stripe token minted in a browser.' + UNVERIFIED,
+        'Run mhlb_init_checkout first, read the total it returns, and pass that figure as expectedTotal. ' +
+        'Only a card ALREADY SAVED on the account can be used: paying with a new card needs a Stripe token ' +
+        'minted by Stripe.js in a browser, which no server-side client can produce.' + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Pay for cart', readOnly: false, openWorld: true }),
       inputSchema: {
         ...CheckoutShape,
@@ -98,8 +102,11 @@ export function registerCheckoutTools(server: McpServer, client: MhlbClient): vo
         });
       }
 
-      const result = await client.write<Record<string, unknown> | null>('/payment/checkout', body);
-      return jsonResult({ ...(result ?? {}), expectedTotal, idempotencyKey: key });
+      // Nested, not spread: the response shape is unverified, so spreading it
+      // would mangle a non-object and would let `expectedTotal`/`idempotencyKey`
+      // silently shadow same-named server fields.
+      const result = await client.write<unknown>('/payment/checkout', body);
+      return jsonResult({ result, expectedTotal, idempotencyKey: key });
     },
   );
 }

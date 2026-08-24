@@ -71,10 +71,12 @@ directory); existing files are never overwritten.
 Every mutating tool takes `confirm`. Without `confirm: true` it makes **no**
 network call and returns a dry-run preview of exactly what it would send.
 
-`mhlb_checkout` charges a real payment method, so it takes one extra safeguard:
-an `expectedTotal` that must match the total in the payment payload. Price the
-cart with `mhlb_init_checkout`, read the total it reports, and pass that figure.
-A stale cart fails closed instead of paying a different amount.
+`mhlb_checkout` charges a real payment method. The server prices the charge from
+`orderIds`, so nothing client-side can bind the amount — there is no total in the
+request to check against. `expectedTotal` is therefore **attribution, not a
+guard**: you state what you expected, and it is recorded in the dry run and in
+the result so an unexpected charge is traceable to the call that made it. What
+the tool does refuse outright is paying a non-zero total with no `orderIds`.
 
 ### Writes: shapes captured, acceptance unverified
 
