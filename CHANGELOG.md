@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.1](https://github.com/chrischall/myhotlunchbox-mcp/compare/v0.1.0...v0.1.1) (2026-08-24)
+
+
+### Bug Fixes
+
+* make report writes atomic and stop verify-reads exiting 0 on partial runs ([#7](https://github.com/chrischall/myhotlunchbox-mcp/issues/7)) ([2a70a52](https://github.com/chrischall/myhotlunchbox-mcp/commit/2a70a5232e805e04fdd5c905a4d8477e2d3fd2ab))
+* validate report bodies by magic bytes, not content-type ([#5](https://github.com/chrischall/myhotlunchbox-mcp/issues/5)) ([4ae67e9](https://github.com/chrischall/myhotlunchbox-mcp/commit/4ae67e99faef8f8b89127bd354f2a423a3ccd61a))
+
 ## 0.1.0 (2026-08-24)
 
 
