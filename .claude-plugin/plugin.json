@@ -1,7 +1,7 @@
 {
   "name": "myhotlunchbox-mcp",
   "displayName": "My Hot Lunchbox",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "MCP server for My Hot Lunchbox — order school lunches, manage students, and track payments via natural language",
   "author": {
     "name": "Chris Hall",
