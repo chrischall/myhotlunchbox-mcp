@@ -1,5 +1,11 @@
 # How this MCP wants to be hosted on mcp-host (see mcp-host/docs/HOSTING-MANIFEST.md).
 #
+# NOTE ON THE FILENAME: mcp-host's reader currently matches `mcp-host.yaml`
+# (HOSTING_MANIFEST_FILE, packages/core/src/hosting-manifest-schema.ts). Until
+# that constant accepts `mint.yaml`, this file is not read by anything and the
+# registration preview falls back to inference — silently, since a missing
+# manifest is not an error.
+#
 # This file is a PROPOSAL, never an application. It is read at the resolved pin
 # by the registration preview and rendered for a human; nothing here changes a
 # registration until an owner saves it through the ordinary write path. It is
