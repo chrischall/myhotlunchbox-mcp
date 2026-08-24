@@ -70,7 +70,7 @@ describe('server boot', () => {
     const names = await handshake(join(root, 'dist/index.js'), root);
     // Not an exact count: PR CI runs the branch merged with main, so a tool
     // added by another PR must not break this. index.test.ts owns the roster.
-    expect(names.length).toBeGreaterThanOrEqual(38);
+    expect(names.length).toBeGreaterThanOrEqual(34);
     expect(names).toContain('mhlb_whoami');
   }, 30_000);
 
@@ -84,7 +84,7 @@ describe('server boot', () => {
     writeFileSync(join(dir, 'package.json'), JSON.stringify({ type: 'module' }));
 
     const names = await handshake(join(dir, 'dist/bundle.js'), dir);
-    expect(names.length).toBeGreaterThanOrEqual(38);
+    expect(names.length).toBeGreaterThanOrEqual(34);
     expect(names).toContain('mhlb_whoami');
   }, 30_000);
 });

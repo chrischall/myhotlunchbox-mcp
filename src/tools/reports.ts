@@ -1,69 +1,170 @@
-import { toolAnnotations, PositiveInt, IsoDate } from '@chrischall/mcp-utils';
+import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
+import { isAbsolute, join, resolve } from 'node:path';
+import { McpToolError, readEnvVar, toolAnnotations, PositiveInt, IsoDate } from '@chrischall/mcp-utils';
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { MhlbClient } from '../client.js';
 import { jsonResult } from './_shared.js';
 
 /**
- * The print endpoints render a PDF server-side and return a reference to it.
- * They are POSTs but produce no account state, so they are reads for gating
- * purposes and carry no `confirm`.
+ * The `/parentReports/print*` endpoints are declared `responseType: 'blob'` in
+ * the site's own client and stream a wkhtmltopdf-generated PDF. They generate a
+ * document rather than changing account state, so they are reads and carry no
+ * `confirm` — but they do write a local file, so the destination is
+ * configurable and never silently overwrites.
  */
+
+const MAX_INLINE_BYTES = 750_000;
+
+/** Where PDFs land. `MYHOTLUNCHBOX_OUTPUT_DIR`, else the working directory. */
+export function outputDir(env: NodeJS.ProcessEnv = process.env): string {
+  const configured = readEnvVar('MYHOTLUNCHBOX_OUTPUT_DIR', { env });
+  return configured ? resolve(configured) : process.cwd();
+}
+
+/** Append ` (2)`, ` (3)`, … rather than clobbering an existing report. */
+export function nonClobberingPath(dir: string, filename: string): string {
+  const dot = filename.lastIndexOf('.');
+  const stem = dot > 0 ? filename.slice(0, dot) : filename;
+  const ext = dot > 0 ? filename.slice(dot) : '';
+  let candidate = join(dir, filename);
+  for (let n = 2; existsSync(candidate); n += 1) candidate = join(dir, `${stem} (${n})${ext}`);
+  return candidate;
+}
+
+/** Reject a filename that would escape the output directory. */
+function safeName(name: string): string {
+  if (name.includes('/') || name.includes('\\') || name.includes('..') || isAbsolute(name)) {
+    throw new McpToolError(`Unsafe report filename: ${name}`, {
+      hint: 'filename must be a bare name, with no path separators.',
+    });
+  }
+  return name.endsWith('.pdf') ? name : `${name}.pdf`;
+}
+
+function deliver(
+  bytes: Uint8Array,
+  contentType: string,
+  filename: string,
+  inline: boolean,
+): ReturnType<typeof jsonResult> {
+  if (inline) {
+    if (bytes.byteLength > MAX_INLINE_BYTES) {
+      throw new McpToolError(
+        `Report is ${bytes.byteLength} bytes — too large to return inline (limit ${MAX_INLINE_BYTES}).`,
+        { hint: 'Call again with inline: false to write it to a file instead.' },
+      );
+    }
+    return jsonResult({
+      filename,
+      contentType,
+      bytes: bytes.byteLength,
+      base64: Buffer.from(bytes).toString('base64'),
+    });
+  }
+
+  const dir = outputDir();
+  mkdirSync(dir, { recursive: true });
+  const path = nonClobberingPath(dir, filename);
+  writeFileSync(path, bytes);
+  return jsonResult({ path, contentType, bytes: bytes.byteLength });
+}
+
+/** The midpoint date the calendar report uses to title the PDF. */
+export function midpoint(start: string, end: string): string {
+  const mid = new Date((Date.parse(start) + Date.parse(end)) / 2);
+  return mid.toISOString().slice(0, 10);
+}
+
+const inlineFlag = z
+  .boolean()
+  .optional()
+  .describe('Return the PDF as base64 in the result instead of writing it to a file. Default false.');
+
 export function registerReportTools(server: McpServer, client: MhlbClient): void {
+  server.registerTool(
+    'mhlb_print_calendar',
+    {
+      description:
+        'Generate the printable lunch calendar PDF for a date range. Writes the PDF to disk and returns its ' +
+        'path (or the bytes inline with inline: true).',
+      annotations: toolAnnotations({ title: 'Print lunch calendar', openWorld: true }),
+      inputSchema: {
+        startDate: IsoDate.describe('First day to include (YYYY-MM-DD).'),
+        endDate: IsoDate.describe('Last day to include (YYYY-MM-DD).'),
+        studentIds: z
+          .array(PositiveInt)
+          .optional()
+          .describe('Students to include. Defaults to every student on the account.'),
+        filename: z.string().optional().describe('Output filename. Defaults to "Lunch Calendar.pdf".'),
+        inline: inlineFlag,
+      },
+    },
+    async ({ startDate, endDate, studentIds, filename, inline }) => {
+      const { bytes, contentType } = await client.writeBinary('/parentReports/printCalendar', {
+        start: startDate,
+        end: endDate,
+        middle: midpoint(startDate, endDate),
+        studentIds: studentIds ?? [],
+      });
+      return deliver(bytes, contentType, safeName(filename ?? 'Lunch Calendar.pdf'), inline ?? false);
+    },
+  );
+
   server.registerTool(
     'mhlb_print_orders',
     {
       description:
-        'Generate the printable orders report for a date range — the same PDF the site’s Print button produces.',
-      annotations: toolAnnotations({ title: 'Print orders report', openWorld: true }),
+        'Generate the printable order-details PDF for a single lunch date. Note this is one date, not a range, ' +
+        'and studentIds is required — the endpoint fails if it is empty, or if no order matches the date and ' +
+        'status you ask for. Get both from mhlb_get_calendar.',
+      annotations: toolAnnotations({ title: 'Print order details', openWorld: true }),
       inputSchema: {
-        startDate: IsoDate.describe('First day to include (YYYY-MM-DD).'),
-        endDate: IsoDate.describe('Last day to include (YYYY-MM-DD).'),
-        studentIds: z.array(PositiveInt).optional().describe('Limit to these students.'),
+        date: IsoDate.describe('The lunch date to report on (YYYY-MM-DD).'),
+        orderStatus: z
+          .union([z.literal(0), z.literal(1), z.literal(2)])
+          .default(1)
+          .describe('Order status to report: 0 = Pending, 1 = Paid (default), 2 = Credited.'),
+        studentIds: z
+          .array(PositiveInt)
+          .min(1)
+          .describe('Students to include — at least one. An empty list makes the endpoint fail.'),
+        filename: z.string().optional().describe('Output filename. Defaults to "Orders Details <date>.pdf".'),
+        inline: inlineFlag,
       },
     },
-    async ({ startDate, endDate, studentIds }) =>
-      jsonResult(
-        await client.write('/parentReports/printOrders', {
-          startDate,
-          endDate,
-          ...(studentIds ? { studentIds } : {}),
-        }),
-      ),
+    async ({ date, orderStatus, studentIds, filename, inline }) => {
+      const { bytes, contentType } = await client.writeBinary('/parentReports/printOrders', {
+        orderStatus,
+        eventDate: date,
+        studentIds,
+      });
+      return deliver(bytes, contentType, safeName(filename ?? `Orders Details ${date}.pdf`), inline ?? false);
+    },
   );
 
   server.registerTool(
-    'mhlb_print_calendar',
+    'mhlb_print_transaction',
     {
-      description: 'Generate the printable lunch calendar for a date range.',
-      annotations: toolAnnotations({ title: 'Print calendar', openWorld: true }),
+      description:
+        'Generate the printable receipt PDF for one transaction. Pass the transaction object from ' +
+        'mhlb_get_transaction — the endpoint renders that record, it does not look one up by id.',
+      annotations: toolAnnotations({ title: 'Print transaction receipt', openWorld: true }),
       inputSchema: {
-        startDate: IsoDate.describe('First day to include (YYYY-MM-DD).'),
-        endDate: IsoDate.describe('Last day to include (YYYY-MM-DD).'),
-        studentIds: z.array(PositiveInt).optional().describe('Limit to these students.'),
+        transaction: z
+          .record(z.string(), z.unknown())
+          .describe('The transaction detail object, as returned by mhlb_get_transaction.'),
+        isCreditType: z.boolean().optional().describe('Render as a credit rather than a payment. Default false.'),
+        filename: z.string().optional().describe('Output filename. Defaults to "Transaction.pdf".'),
+        inline: inlineFlag,
       },
     },
-    async ({ startDate, endDate, studentIds }) =>
-      jsonResult(
-        await client.write('/parentReports/printCalendar', {
-          startDate,
-          endDate,
-          ...(studentIds ? { studentIds } : {}),
-        }),
-      ),
-  );
-
-  server.registerTool(
-    'mhlb_print_transactions',
-    {
-      description: 'Generate the printable transactions report for a date range.',
-      annotations: toolAnnotations({ title: 'Print transactions', openWorld: true }),
-      inputSchema: {
-        startDate: IsoDate.describe('First day to include (YYYY-MM-DD).'),
-        endDate: IsoDate.describe('Last day to include (YYYY-MM-DD).'),
-      },
+    async ({ transaction, isCreditType, filename, inline }) => {
+      const { bytes, contentType } = await client.writeBinary('/parentReports/printTransactions', {
+        ...transaction,
+        isCreditType: isCreditType ?? false,
+      });
+      return deliver(bytes, contentType, safeName(filename ?? 'Transaction.pdf'), inline ?? false);
     },
-    async ({ startDate, endDate }) =>
-      jsonResult(await client.write('/parentReports/printTransactions', { startDate, endDate })),
   );
 }

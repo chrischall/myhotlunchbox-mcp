@@ -126,10 +126,46 @@ Field names observed in the order model: `studentId`, `eventId`, `eventItemId`,
 
 ## Verification status
 
-**Verified live** — the auth flow (probe above), the API base path, the absence
-of a bot wall and of a CAPTCHA, and the four endpoints the calendar page issues
-on load: `/auth/userinfo`, `/parent/childrenInfo`, `/event/shoppingCart`,
-`/event/ShoppingCartBaseData`, `/ajax/smsOption`, `/calendar/studentSchoolData`.
+**Verified live against a real parent account — 18/18 read paths.** The auth
+flow (probe above), the API base path, the absence of a bot wall and of a
+CAPTCHA, and every read endpoint the server wires: `/auth/userinfo`,
+`/parent/childrenInfo`, `/calendar/studentSchoolData`,
+`/calendar/studentOrderItems`, `/event/ShoppingCartBaseData`,
+`/event/shoppingCart`, `/event/orderBaseData`, `/event/createOrder` (GET),
+`/event/editOrder` (GET), `/event/transactionsList`,
+`/event/upcomingSubscriptions`, `/event/subscription`,
+`/parent/giftCardDataTables`, `/parent/coupon`, and all three
+`/parentReports/print*` endpoints (each returning a real PDF).
+
+### What live verification caught that the extraction did not
+
+Four things, all of which would have shipped broken:
+
+1. **`/calendar/studentSchoolData` takes `start`/`end`, not `startDate`/`endDate`.**
+   The wrong field names return **HTTP 200 with an empty `events` array** — a
+   silent wrong answer, not an error. Captured from the live app:
+   `{"start":"2026-07-26","end":"2026-09-06"}`.
+
+2. **The `/parentReports/print*` endpoints return binary PDF, not JSON.** The
+   site's own client declares `responseType: 'blob'`; they stream
+   `%PDF-1.4` from wkhtmltopdf. Parsing them as JSON throws on the first byte,
+   so they need a separate client path (`MhlbClient.writeBinary`).
+
+3. **Their payloads are not date ranges.**
+   `printCalendar` takes `{start, end, middle, studentIds}` — `middle` is the
+   midpoint date, used to title the PDF. `printOrders` takes
+   `{orderStatus, eventDate, studentIds}` — a **single** date, and `studentIds`
+   must be **non-empty** or the endpoint answers `500`. It also answers `500`
+   when no order matches the date and status, so a `500` here is usually a
+   caller mistake dressed as a server fault. `printTransactions` takes a whole
+   transaction record plus `isCreditType`, not a range.
+   Order status enum: `Pending: 0, Paid: 1, Credited: 2`.
+
+4. **Four endpoints classified as parent-facing are not.** `/deliveryInfo/nextDelivery`,
+   `/deliveryInfo/upcomingDeliveries`, `/deliveryInfo/archivedDeliveries` and
+   `/calendar/viewMatchedVendors` all return `403` for a parent account — they
+   are reached from `school-calendar` and a different (school/vendor) dashboard
+   chunk. The tools that wrapped them were removed rather than shipped dead.
 
 **UNVERIFIED** — every write endpoint. Their paths, verbs and query parameters
 come from the compiled client and are reliable; their **request bodies** have

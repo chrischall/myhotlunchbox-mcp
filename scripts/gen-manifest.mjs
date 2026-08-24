@@ -15,7 +15,11 @@ const registrars = await Promise.all(
 const client = new MhlbClient({ baseUrl: 'https://example.test', username: undefined, password: undefined });
 const harness = await createTestHarness((server) => {
   for (const mod of registrars) {
-    for (const fn of Object.values(mod)) if (typeof fn === 'function') fn(server, client);
+    // Only the registrars — modules also export helpers, and calling those
+    // with (server, client) throws.
+    for (const [name, fn] of Object.entries(mod)) {
+      if (typeof fn === 'function' && name.startsWith('register')) fn(server, client);
+    }
   }
 });
 

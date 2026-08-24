@@ -123,6 +123,55 @@ export class MhlbClient {
     return this.request<T>('POST', path, { body, query });
   }
 
+  /**
+   * Authenticated POST whose response is binary, not JSON.
+   *
+   * The `/parentReports/print*` endpoints are declared `responseType: 'blob'`
+   * in the site's own client and return a `%PDF-1.4` stream. Parsing those as
+   * JSON throws on the first byte, so they need their own path.
+   */
+  async writeBinary(
+    path: string,
+    body: unknown,
+  ): Promise<{ bytes: Uint8Array; contentType: string }> {
+    const target = this.url(path);
+    const res = await this.auth.withAuth((accessToken) =>
+      this.auth.fetch(target, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${accessToken}`,
+          accept: 'application/pdf, application/octet-stream, */*',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      }),
+    );
+
+    if (!res.ok) {
+      const raw = await res.text();
+      if (res.status >= 500) {
+        // These report endpoints answer 500 (not 4xx) for an empty studentIds
+        // list or a date carrying no matching order — a caller mistake dressed
+        // as a server fault. Say so rather than advising "try again later".
+        throw new McpToolError(
+          `My Hot Lunchbox failed to generate the report (HTTP ${res.status}) for POST ${path}.`,
+          {
+            hint:
+              'This endpoint also answers 500 when the request matches nothing: check that studentIds is ' +
+              'non-empty and that the date actually has an order in the status you asked for.',
+          },
+        );
+      }
+      throw new McpToolError(
+        `My Hot Lunchbox returned HTTP ${res.status} for POST ${path}: ${this.scrub(raw)}`,
+        { hint: 'The report request body was rejected — check the date and student arguments.' },
+      );
+    }
+
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    return { bytes, contentType: res.headers.get('content-type') ?? 'application/octet-stream' };
+  }
+
   /** Drop the in-process session (used by the session tool and by tests). */
   resetSession(): void {
     this.auth.reset();

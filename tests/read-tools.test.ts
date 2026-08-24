@@ -22,10 +22,6 @@ const READ_TOOLS: Array<[string, Record<string, unknown>, string]> = [
   ['mhlb_new_student_form', {}, '/api/parent/createChild'],
   ['mhlb_get_calendar', { startDate: '2026-09-01', endDate: '2026-09-30' }, '/api/calendar/studentSchoolData'],
   ['mhlb_get_day', { studentId: 1, date: '2026-09-14' }, '/api/calendar/studentOrderItems?studentId=1&date=2026-09-14'],
-  ['mhlb_next_delivery', {}, '/api/deliveryInfo/nextDelivery'],
-  ['mhlb_list_upcoming_deliveries', {}, '/api/deliveryInfo/upcomingDeliveries'],
-  ['mhlb_list_past_deliveries', {}, '/api/deliveryInfo/archivedDeliveries'],
-  ['mhlb_list_vendors', {}, '/api/calendar/viewMatchedVendors'],
   ['mhlb_get_cart', {}, '/api/event/shoppingCart'],
   ['mhlb_get_cart_tabs', {}, '/api/event/ShoppingCartBaseData'],
   ['mhlb_get_menu', { studentId: 1, date: '2026-09-14' }, '/api/event/orderBaseData?studentId=1&eventDate=2026-09-14'],
@@ -37,9 +33,6 @@ const READ_TOOLS: Array<[string, Record<string, unknown>, string]> = [
   ['mhlb_get_subscription_settings', {}, '/api/event/subscription'],
   ['mhlb_list_gift_cards', {}, '/api/parent/giftCardDataTables'],
   ['mhlb_get_coupon', {}, '/api/parent/coupon'],
-  ['mhlb_print_orders', { startDate: '2026-09-01', endDate: '2026-09-30' }, '/api/parentReports/printOrders'],
-  ['mhlb_print_calendar', { startDate: '2026-09-01', endDate: '2026-09-30' }, '/api/parentReports/printCalendar'],
-  ['mhlb_print_transactions', { startDate: '2026-09-01', endDate: '2026-09-30' }, '/api/parentReports/printTransactions'],
 ];
 
 async function harness() {

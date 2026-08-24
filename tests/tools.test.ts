@@ -109,9 +109,11 @@ describe('read tools', () => {
     try {
       await harness.callTool('mhlb_get_calendar', { startDate: '2026-09-01', endDate: '2026-09-30' });
       const call = fetchSpy.mock.calls.find((c) => String(c[0]).includes('/calendar/studentSchoolData'));
+      // `start`/`end`, not `startDate`/`endDate`: the wrong names return 200
+      // with an empty events array rather than an error.
       expect(JSON.parse(String((call?.[1] as RequestInit).body))).toEqual({
-        startDate: '2026-09-01',
-        endDate: '2026-09-30',
+        start: '2026-09-01',
+        end: '2026-09-30',
       });
     } finally {
       await harness.close();
