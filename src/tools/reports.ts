@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 import { McpToolError, readEnvVar, toolAnnotations, PositiveInt, IsoDate } from '@chrischall/mcp-utils';
 import { z } from 'zod';
@@ -22,14 +22,43 @@ export function outputDir(env: NodeJS.ProcessEnv = process.env): string {
   return configured ? resolve(configured) : process.cwd();
 }
 
-/** Append ` (2)`, ` (3)`, … rather than clobbering an existing report. */
-export function nonClobberingPath(dir: string, filename: string): string {
+/** Candidate names in order: `r.pdf`, `r (2).pdf`, `r (3).pdf`, … */
+export function* candidateNames(filename: string): Generator<string> {
   const dot = filename.lastIndexOf('.');
   const stem = dot > 0 ? filename.slice(0, dot) : filename;
   const ext = dot > 0 ? filename.slice(dot) : '';
-  let candidate = join(dir, filename);
-  for (let n = 2; existsSync(candidate); n += 1) candidate = join(dir, `${stem} (${n})${ext}`);
-  return candidate;
+  yield filename;
+  for (let n = 2; ; n += 1) yield `${stem} (${n})${ext}`;
+}
+
+/** How many suffixed names to try before giving up. */
+const MAX_NAME_ATTEMPTS = 1000;
+
+/**
+ * Write the report without ever overwriting an existing file.
+ *
+ * `existsSync` followed by a default-flag `writeFileSync` is a TOCTOU race:
+ * two concurrent print calls landing on the same default filename both see it
+ * free and the second silently clobbers the first. `wx` makes the check and
+ * the create one atomic operation, so the loser retries the next name instead.
+ */
+export function writeWithoutClobbering(dir: string, filename: string, bytes: Uint8Array): string {
+  let attempts = 0;
+  for (const name of candidateNames(filename)) {
+    if (attempts >= MAX_NAME_ATTEMPTS) break;
+    attempts += 1;
+    const candidate = join(dir, name);
+    try {
+      writeFileSync(candidate, bytes, { flag: 'wx' });
+      return candidate;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
+    }
+  }
+  throw new McpToolError(
+    `Could not find a free filename for "${filename}" in ${dir} after ${MAX_NAME_ATTEMPTS} attempts.`,
+    { hint: 'Clear out old reports, pass an explicit filename, or set MYHOTLUNCHBOX_OUTPUT_DIR elsewhere.' },
+  );
 }
 
 /** Reject a filename that would escape the output directory. */
@@ -72,9 +101,11 @@ function deliver(
   let path: string;
   try {
     mkdirSync(dir, { recursive: true });
-    path = nonClobberingPath(dir, filename);
-    writeFileSync(path, bytes);
+    path = writeWithoutClobbering(dir, filename, bytes);
   } catch (cause) {
+    // Let an already-actionable error through rather than burying it under a
+    // generic permissions message.
+    if (cause instanceof McpToolError) throw cause;
     throw new McpToolError(`Could not write the report into ${dir}.`, {
       hint: 'Set MYHOTLUNCHBOX_OUTPUT_DIR to a writable directory, or call again with inline: true.',
       cause,

@@ -1,10 +1,16 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createTestHarness, parseToolResult } from '@chrischall/mcp-utils/test';
 import { isPdf, MhlbClient } from '../src/client.js';
-import { midpoint, nonClobberingPath, outputDir, registerReportTools } from '../src/tools/reports.js';
+import {
+  candidateNames,
+  midpoint,
+  outputDir,
+  registerReportTools,
+  writeWithoutClobbering,
+} from '../src/tools/reports.js';
 import { jsonResponse, testConfig, tokenHandler } from './helpers.js';
 
 const dirs: string[] = [];
@@ -53,18 +59,71 @@ describe('outputDir', () => {
   });
 });
 
-describe('nonClobberingPath', () => {
-  it('returns the plain name when nothing is there', () => {
+describe('candidateNames', () => {
+  it('yields the plain name then numbered suffixes, preserving the extension', () => {
+    const it_ = candidateNames('Lunch Calendar.pdf');
+    expect([it_.next().value, it_.next().value, it_.next().value]).toEqual([
+      'Lunch Calendar.pdf',
+      'Lunch Calendar (2).pdf',
+      'Lunch Calendar (3).pdf',
+    ]);
+  });
+
+  it('handles a name with no extension', () => {
+    const it_ = candidateNames('report');
+    expect([it_.next().value, it_.next().value]).toEqual(['report', 'report (2)']);
+  });
+});
+
+describe('writeWithoutClobbering', () => {
+  it('uses the plain name when nothing is there', () => {
     const d = scratch();
-    expect(nonClobberingPath(d, 'r.pdf')).toBe(join(d, 'r.pdf'));
+    expect(writeWithoutClobbering(d, 'r.pdf', PDF)).toBe(join(d, 'r.pdf'));
   });
 
   it('suffixes rather than overwriting an existing report', () => {
     const d = scratch();
-    writeFileSync(join(d, 'r.pdf'), 'x');
-    expect(nonClobberingPath(d, 'r.pdf')).toBe(join(d, 'r (2).pdf'));
-    writeFileSync(join(d, 'r (2).pdf'), 'x');
-    expect(nonClobberingPath(d, 'r.pdf')).toBe(join(d, 'r (3).pdf'));
+    writeFileSync(join(d, 'r.pdf'), 'original');
+    expect(writeWithoutClobbering(d, 'r.pdf', PDF)).toBe(join(d, 'r (2).pdf'));
+    // The pre-existing file must be untouched.
+    expect(readFileSync(join(d, 'r.pdf'), 'utf8')).toBe('original');
+  });
+
+  it('gives every write on the same default name its own file', () => {
+    // Note what this does and does not prove. `writeFileSync` is synchronous,
+    // so a true interleaving cannot be constructed in-process and this would
+    // also pass against the old existsSync-then-write version. The actual
+    // guard against the TOCTOU race is the `wx` flag, asserted directly below;
+    // this covers the naming walk under repeated use.
+    const d = scratch();
+    const bodies = Array.from({ length: 25 }, (_, i) => new TextEncoder().encode(`%PDF-${i}`));
+    const paths = bodies.map((b) => writeWithoutClobbering(d, 'r.pdf', b));
+
+    expect(new Set(paths).size).toBe(bodies.length);
+    expect(readdirSync(d)).toHaveLength(bodies.length);
+    // Every body survived, none overwritten.
+    const written = new Set(paths.map((p) => readFileSync(p, 'utf8')));
+    expect(written).toEqual(new Set(bodies.map((b) => new TextDecoder().decode(b))));
+  });
+});
+
+describe('writeWithoutClobbering atomicity', () => {
+  it('creates with the exclusive flag, so an existing file is never truncated', () => {
+    // This is the property the `wx` flag buys: the existence check and the
+    // create are one operation, so a file that appears between "choose a name"
+    // and "write it" cannot be clobbered.
+    const d = scratch();
+    writeFileSync(join(d, 'r.pdf'), 'pre-existing');
+    const written = writeWithoutClobbering(d, 'r.pdf', PDF);
+    expect(written).not.toBe(join(d, 'r.pdf'));
+    expect(readFileSync(join(d, 'r.pdf'), 'utf8')).toBe('pre-existing');
+  });
+
+  it('surfaces a non-EEXIST write failure instead of looping on it', () => {
+    // A permissions error must not be mistaken for "name taken, try the next".
+    const d = scratch();
+    rmSync(d, { recursive: true, force: true });
+    expect(() => writeWithoutClobbering(d, 'r.pdf', PDF)).toThrow();
   });
 });
 

@@ -134,4 +134,13 @@ if (skipped.length) {
   console.log('not exercised (account state did not provide the inputs):');
   for (const t of skipped) console.log(`  ${t}`);
 }
-process.exitCode = failed.length ? 1 : 0;
+// Exit non-zero when anything FAILED *or* when the run could not exercise the
+// whole roster. A run that skipped rows for lack of account state is not
+// evidence that all 20 read tools work, and must not be cited as if it were.
+process.exitCode = failed.length || covered.length < READ_TOOLS.length ? 1 : 0;
+if (!failed.length && covered.length < READ_TOOLS.length) {
+  console.log(
+    `\nIncomplete: ${READ_TOOLS.length - covered.length} read tool(s) were not exercised, so this run ` +
+    `does not verify the full roster. Exiting non-zero.`,
+  );
+}
