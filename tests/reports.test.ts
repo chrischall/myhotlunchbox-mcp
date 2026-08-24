@@ -6,6 +6,7 @@ import { createTestHarness, parseToolResult } from '@chrischall/mcp-utils/test';
 import { isPdf, MhlbClient } from '../src/client.js';
 import {
   candidateNames,
+  MAX_NAME_ATTEMPTS,
   midpoint,
   outputDir,
   registerReportTools,
@@ -18,6 +19,16 @@ afterEach(() => {
   for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
   delete process.env.MYHOTLUNCHBOX_OUTPUT_DIR;
 });
+
+/** The first `n` names the walk will try, for tests that need to block them. */
+const takeNames = (filename: string, n: number): string[] => {
+  const out: string[] = [];
+  for (const name of candidateNames(filename)) {
+    out.push(name);
+    if (out.length === n) break;
+  }
+  return out;
+};
 
 const scratch = () => {
   const d = mkdtempSync(join(tmpdir(), 'mhlb-out-'));
@@ -124,6 +135,62 @@ describe('writeWithoutClobbering atomicity', () => {
     const d = scratch();
     rmSync(d, { recursive: true, force: true });
     expect(() => writeWithoutClobbering(d, 'r.pdf', PDF)).toThrow();
+  });
+});
+
+describe('deliver() error handling, through a real tool call', () => {
+  // The two branches differ in what the caller is told, so both are worth
+  // pinning at the tool boundary rather than only on the helper.
+
+  it('passes an actionable McpToolError through unchanged', async () => {
+    // Exhaust every candidate name so writeWithoutClobbering raises its own
+    // typed error. The caller must see that message — "no free filename" is
+    // actionable; deliver()'s generic "could not write into <dir>" is not, and
+    // would send them chasing a permissions problem they do not have.
+    const d = scratch();
+    for (const name of takeNames('Lunch Calendar.pdf', MAX_NAME_ATTEMPTS)) {
+      writeFileSync(join(d, name), 'taken');
+    }
+    process.env.MYHOTLUNCHBOX_OUTPUT_DIR = d;
+
+    const { h } = await harness();
+    try {
+      const result = await h.callTool('mhlb_print_calendar', {
+        startDate: '2026-09-01',
+        endDate: '2026-09-30',
+        studentIds: [7],
+      });
+      expect(result.isError).toBe(true);
+      const text = result.content.map((c) => ('text' in c ? c.text : '')).join(' ');
+      expect(text).toContain('Could not find a free filename');
+      expect(text).not.toContain('Could not write the report into');
+    } finally {
+      await h.close();
+    }
+  }, 20_000);
+
+  it('wraps an untyped filesystem failure with the output-dir hint', async () => {
+    // A plain errno (here: the output path is a FILE, so mkdirSync fails
+    // ENOTDIR) must take the other branch and name the env var.
+    const parent = scratch();
+    const notADir = join(parent, 'occupied');
+    writeFileSync(notADir, 'i am a file');
+    process.env.MYHOTLUNCHBOX_OUTPUT_DIR = notADir;
+
+    const { h } = await harness();
+    try {
+      const result = await h.callTool('mhlb_print_calendar', {
+        startDate: '2026-09-01',
+        endDate: '2026-09-30',
+        studentIds: [7],
+      });
+      expect(result.isError).toBe(true);
+      const text = result.content.map((c) => ('text' in c ? c.text : '')).join(' ');
+      expect(text).toContain('Could not write the report into');
+      expect(text).toContain('MYHOTLUNCHBOX_OUTPUT_DIR');
+    } finally {
+      await h.close();
+    }
   });
 });
 
