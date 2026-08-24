@@ -36,9 +36,11 @@ CLAUDE.md
 *.yaml
 *.yml
 
-# Registry / plugin / skill manifests (not used at runtime)
+# Registry / plugin / skill manifests (not used at runtime).
+# The hosting manifest (mint.yaml) belongs here too, but is already covered by
+# the *.yaml wildcard above — listing it again would just be a second place to
+# keep the name in step.
 server.json
-mint.yaml
 plugin.json
 .claude-plugin/
 .mcp.json
