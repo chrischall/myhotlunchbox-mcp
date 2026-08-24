@@ -115,12 +115,8 @@ date and status. Treat a 500 from either as a bad request, not an outage.
 
 `printTransactions` wants the record from `/event/transactionDetails`, **not** a
 row from `/event/transactionsList` — both render, but they are different shapes
-and different documents. Get the id from the list, then fetch the record:
-
-```sh
-ID=$(mhlb_get /event/transactionsList | jq -r '.transactions[0].id')
-mhlb_get "/event/transactionDetails?id=$ID" | jq -c '. + {isCreditType:false}' > tx.json
-```
+and different documents. The list is only used to get the id, as the recipe
+above does.
 
 ## Writes — all UNVERIFIED
 
