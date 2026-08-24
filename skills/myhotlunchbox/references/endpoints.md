@@ -32,19 +32,20 @@ mhlb_post() {
     -H 'Content-Type: application/json' -d "${1:-{\}}"
 }
 
-mhlb_post /calendar/studentSchoolData '{"startDate":"2026-09-01","endDate":"2026-09-30"}' | jq .
+# Fields are `start`/`end` — `startDate`/`endDate` silently returns zero events.
+mhlb_post /calendar/studentSchoolData '{"start":"2026-09-01","end":"2026-09-30"}' | jq .
+
+# Events carry the ids the ordering endpoints need:
+mhlb_post /calendar/studentSchoolData '{"start":"2026-09-01","end":"2026-09-30"}' \
+  | jq '.events[] | {studentId, eventId: .id, orderId, date: .start[0:10], className}'
 
 # What one student has on one day
 mhlb_get '/calendar/studentOrderItems?studentId=456&date=2026-09-14' | jq .
-
-# Deliveries
-mhlb_get /deliveryInfo/nextDelivery         | jq .
-mhlb_get /deliveryInfo/upcomingDeliveries   | jq .
-mhlb_get /deliveryInfo/archivedDeliveries   | jq .
-
-# Which vendors are matched to the account's schools
-mhlb_get /calendar/viewMatchedVendors | jq .
 ```
+
+`/deliveryInfo/*` and `/calendar/viewMatchedVendors` look parent-facing in the
+site's compiled client but return **403** for a parent account — they belong to
+the school and vendor dashboards. Verified live; don't reach for them.
 
 ## Cart and menu
 
@@ -64,7 +65,7 @@ mhlb_get '/event/orderBaseData?studentId=456&eventDate=2026-09-14' | jq .
 
 ```sh
 mhlb_get /event/transactionsList              | jq .
-mhlb_get '/event/transactionDetails?transactionId=999' | jq .
+mhlb_get '/event/transactionDetails?id=999' | jq .   # id comes from transactionsList
 mhlb_get /event/subscription                  | jq .
 mhlb_get '/event/upcomingSubscriptions'       | jq .
 ```
@@ -78,12 +79,45 @@ mhlb_get /parent/coupon             | jq .
 
 ## Printable reports
 
-Each returns a reference to a server-rendered PDF.
+These stream a **binary PDF**, not JSON — pipe to a file, never to `jq`. Their
+payloads are not date ranges.
 
 ```sh
-mhlb_post /parentReports/printOrders       '{"startDate":"2026-09-01","endDate":"2026-09-30"}' | jq .
-mhlb_post /parentReports/printCalendar     '{"startDate":"2026-09-01","endDate":"2026-09-30"}' | jq .
-mhlb_post /parentReports/printTransactions '{"startDate":"2026-09-01","endDate":"2026-09-30"}' | jq .
+mhlb_pdf() {  # usage: mhlb_pdf <endpoint> <json> <out.pdf>
+  curl -sS -X POST "$MHLB/api$1" -H "Authorization: Bearer $MHLB_TOKEN" \
+    -H 'Content-Type: application/json' -d "$2" -o "$3" && file "$3"
+}
+
+# Calendar — needs `middle` (the midpoint date, which titles the PDF) and a
+# NON-EMPTY studentIds. There is no "all students" default: an empty or omitted
+# list answers 500, same as printOrders.
+mhlb_pdf /parentReports/printCalendar \
+  '{"start":"2026-09-01","end":"2026-09-30","middle":"2026-09-15","studentIds":[111627]}' \
+  'Lunch Calendar.pdf'
+
+# Orders — ONE date, not a range. studentIds must be non-empty.
+# orderStatus: 0 = Pending, 1 = Paid, 2 = Credited.
+mhlb_pdf /parentReports/printOrders \
+  '{"orderStatus":1,"eventDate":"2026-09-14","studentIds":[111627]}' \
+  'Orders Details.pdf'
+
+# One transaction receipt — send the whole record from transactionsList
+ID=$(mhlb_get /event/transactionsList | jq -r '.transactions[0].id')
+mhlb_get "/event/transactionDetails?id=$ID" | jq -c '. + {isCreditType:false}' > tx.json
+mhlb_pdf /parentReports/printTransactions "$(cat tx.json)" 'Transaction.pdf'
+```
+
+Both `printCalendar` and `printOrders` answer **500** — not a 4xx — when
+`studentIds` is empty, and `printOrders` also 500s when no order matches the
+date and status. Treat a 500 from either as a bad request, not an outage.
+
+`printTransactions` wants the record from `/event/transactionDetails`, **not** a
+row from `/event/transactionsList` — both render, but they are different shapes
+and different documents. Get the id from the list, then fetch the record:
+
+```sh
+ID=$(mhlb_get /event/transactionsList | jq -r '.transactions[0].id')
+mhlb_get "/event/transactionDetails?id=$ID" | jq -c '. + {isCreditType:false}' > tx.json
 ```
 
 ## Writes — all UNVERIFIED
@@ -120,4 +154,5 @@ The same bundle serves school-admin and vendor roles. These return `403` for a
 parent and are listed only so a `403` is not mistaken for a broken session:
 `/school`, `/schoolManagement`, `/schoolOnboarding`, `/vendor`, `/vendorReports`,
 `/schoolVendorReports`, `/item`, `/adminTasks`, `/quickbooks`, `/docusign`,
-`/interactiveDistributionReport`, `/upload`.
+`/interactiveDistributionReport`, `/upload`, `/deliveryInfo`, and
+`/calendar/viewMatchedVendors`.

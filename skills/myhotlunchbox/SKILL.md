@@ -59,10 +59,12 @@ The token lasts about an hour. Re-run `mhlb_login` when a call starts returning
 # Who the students are — the id feeds everything else
 mhlb_get /parent/childrenInfo | jq '.[] | {id, firstName, schoolName, gradeTeacher, isInactive}'
 
-# The lunch calendar for a date range (POST, despite being a read)
+# The lunch calendar for a date range (POST, despite being a read).
+# The fields are `start`/`end`. Using `startDate`/`endDate` returns 200 with an
+# EMPTY events array — a silent wrong answer, not an error.
 curl -sS -X POST "$MHLB/api/calendar/studentSchoolData" \
   -H "Authorization: Bearer $MHLB_TOKEN" -H 'Content-Type: application/json' \
-  -d '{"startDate":"2026-09-01","endDate":"2026-09-30"}' | jq .
+  -d '{"start":"2026-09-01","end":"2026-09-30"}' | jq '.events[] | {studentId, id, start, className}'
 
 # What is in the cart but not yet paid for
 mhlb_get '/event/shoppingCart' | jq .
@@ -100,7 +102,8 @@ afterwards to confirm it landed. A `200` is not proof.
 | `400` + `invalid_grant` | wrong username/password — **do not retry** |
 | `401` on an API call | token expired; run `mhlb_login` again |
 | `403` | the endpoint belongs to the school-admin or vendor role, not a parent |
-| non-JSON `200` | the session lapsed into an HTML page; sign in again |
+| non-JSON `200` | either a `/parentReports/print*` PDF (expected — see references) or the session lapsed into an HTML page |
+| `500` on `/parentReports/printOrders` | usually a caller mistake: empty `studentIds`, or no order matching that date and status |
 
 ## Prefer the MCP when it is available
 

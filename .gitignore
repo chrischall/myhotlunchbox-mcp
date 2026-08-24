@@ -4,3 +4,7 @@ dist/
 coverage/
 *.skill
 *.mcpb
+
+# Report output from the print tools (default dir is the cwd)
+*.pdf
+*.tgz

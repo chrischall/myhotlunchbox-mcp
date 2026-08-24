@@ -1,5 +1,4 @@
 import { toolAnnotations, PositiveInt, IsoDate } from '@chrischall/mcp-utils';
-import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { MhlbClient } from '../client.js';
 import { jsonResult } from './_shared.js';
@@ -15,20 +14,13 @@ export function registerCalendarTools(server: McpServer, client: MhlbClient): vo
       inputSchema: {
         startDate: IsoDate.describe('First day to include (YYYY-MM-DD).'),
         endDate: IsoDate.describe('Last day to include (YYYY-MM-DD).'),
-        studentIds: z
-          .array(PositiveInt)
-          .optional()
-          .describe('Limit to these students. Defaults to every student on the account.'),
       },
     },
-    async ({ startDate, endDate, studentIds }) =>
-      jsonResult(
-        await client.write('/calendar/studentSchoolData', {
-          startDate,
-          endDate,
-          ...(studentIds ? { studentIds } : {}),
-        }),
-      ),
+    // Field names are `start`/`end`, captured from the live app. Sending
+    // `startDate`/`endDate` returns 200 with an empty `events` array — a silent
+    // wrong answer, not an error.
+    async ({ startDate, endDate }) =>
+      jsonResult(await client.write('/calendar/studentSchoolData', { start: startDate, end: endDate })),
   );
 
   server.registerTool(
@@ -46,44 +38,4 @@ export function registerCalendarTools(server: McpServer, client: MhlbClient): vo
       jsonResult(await client.get('/calendar/studentOrderItems', { studentId, date })),
   );
 
-  server.registerTool(
-    'mhlb_next_delivery',
-    {
-      description: 'Get the next scheduled lunch delivery for the account — date, school, and what is coming.',
-      annotations: toolAnnotations({ title: 'Next delivery', openWorld: true }),
-      inputSchema: {},
-    },
-    async () => jsonResult(await client.get('/deliveryInfo/nextDelivery')),
-  );
-
-  server.registerTool(
-    'mhlb_list_upcoming_deliveries',
-    {
-      description: 'List upcoming lunch deliveries for the account.',
-      annotations: toolAnnotations({ title: 'List upcoming deliveries', openWorld: true }),
-      inputSchema: {},
-    },
-    async () => jsonResult(await client.get('/deliveryInfo/upcomingDeliveries')),
-  );
-
-  server.registerTool(
-    'mhlb_list_past_deliveries',
-    {
-      description: 'List past (archived) lunch deliveries for the account.',
-      annotations: toolAnnotations({ title: 'List past deliveries', openWorld: true }),
-      inputSchema: {},
-    },
-    async () => jsonResult(await client.get('/deliveryInfo/archivedDeliveries')),
-  );
-
-  server.registerTool(
-    'mhlb_list_vendors',
-    {
-      description:
-        'List the food vendors matched to the account’s schools — who is actually able to deliver lunch.',
-      annotations: toolAnnotations({ title: 'List matched vendors', openWorld: true }),
-      inputSchema: {},
-    },
-    async () => jsonResult(await client.get('/calendar/viewMatchedVendors')),
-  );
 }

@@ -36,6 +36,41 @@ back. Same for `editOrder`, `createChild`, `editChild`. The site's own compiled
 client passes these through opaquely and never names the fields, so the tools do
 the same rather than inventing a schema. These are whole-record replaces.
 
+## Field names the extraction got wrong
+
+Four things the compiled-client extraction could not tell us, all found by
+running against a real account. Do not "simplify" any of them back:
+
+- `/calendar/studentSchoolData` takes **`start`/`end`**, not `startDate`/`endDate`.
+  Wrong names return **200 with an empty `events` array** — a silent wrong
+  answer. `tests/tools.test.ts` pins this.
+- `/parentReports/print*` return **binary PDF**, not JSON — hence
+  `MhlbClient.writeBinary`. Their payloads are not date ranges:
+  `printCalendar` needs `middle` (the midpoint date), `printOrders` takes a
+  **single** `eventDate` plus a **non-empty** `studentIds`, and
+  `printTransactions` takes a whole transaction record.
+- `printOrders` answers **500**, not 4xx, for an empty `studentIds` or a date
+  with no matching order. `writeBinary` words its 500 hint accordingly — do not
+  replace it with a generic `UnreachableError`.
+- Order status enum: `Pending: 0, Paid: 1, Credited: 2`.
+
+`/deliveryInfo/*` and `/calendar/viewMatchedVendors` are **not** parent-role
+(403, verified live) even though they sit in chunks the parent bundle loads.
+Tools for them were removed; don't re-add them from the extraction.
+
+`/parentReports/printCalendar` **also** 500s on an empty or omitted
+`studentIds` — same as `printOrders`. Neither has an "all students" default, so
+both schemas require `.min(1)`.
+
+`mhlb_print_transaction` wants the record from `/event/transactionDetails`, not
+a row from `/event/transactionsList`. Both render, but they are different shapes
+and different documents.
+
+Re-run `node scripts/verify-reads.mjs` (needs `.env`) after touching any read
+path — it drives all 20 read tools through the built client, measures coverage
+against the roster rather than against its own row list, and exits non-zero on
+failure.
+
 ## Writes are unverified
 
 Paths and verbs came from the compiled client and are reliable; request bodies

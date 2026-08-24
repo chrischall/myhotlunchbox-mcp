@@ -38,7 +38,7 @@ still works; the configuration error surfaces on the first tool call.
 
 ## Tools
 
-38 tools, all prefixed `mhlb_`.
+34 tools, all prefixed `mhlb_`. All 20 read tools are verified live against a real parent account (`node scripts/verify-reads.mjs`); the 14 write tools are not — see below.
 
 **Account** — `mhlb_whoami`, `mhlb_session_reset`
 
@@ -46,9 +46,7 @@ still works; the configuration error surfaces on the first tool call.
 `mhlb_new_student_form`, `mhlb_create_student`, `mhlb_update_student`,
 `mhlb_delete_student`
 
-**Calendar & deliveries** — `mhlb_get_calendar`, `mhlb_get_day`,
-`mhlb_next_delivery`, `mhlb_list_upcoming_deliveries`,
-`mhlb_list_past_deliveries`, `mhlb_list_vendors`
+**Calendar** — `mhlb_get_calendar`, `mhlb_get_day`
 
 **Ordering** — `mhlb_get_cart`, `mhlb_get_cart_tabs`, `mhlb_get_menu`,
 `mhlb_get_order_form`, `mhlb_get_order`, `mhlb_create_order`,
@@ -62,8 +60,11 @@ still works; the configuration error surfaces on the first tool call.
 
 **Checkout** — `mhlb_init_checkout`, `mhlb_checkout`
 
-**Reports** — `mhlb_print_orders`, `mhlb_print_calendar`,
-`mhlb_print_transactions`
+**Reports** — `mhlb_print_calendar`, `mhlb_print_orders`,
+`mhlb_print_transaction`. These return real PDFs; each writes the file and
+returns its path, or the bytes inline with `inline: true`. Set
+`MYHOTLUNCHBOX_OUTPUT_DIR` to choose where they land (defaults to the working
+directory); existing files are never overwritten.
 
 ## Writes are confirm-gated
 
@@ -102,6 +103,9 @@ installed.
 
 ## Notes
 
+- `/deliveryInfo/*` and `/calendar/viewMatchedVendors` look parent-facing in the
+  compiled client but return `403` for a parent account — they belong to the
+  school/vendor dashboards. No tool wraps them.
 - Only the parent role is wired. The same API also serves school-admin and
   vendor roles; those endpoints return `403`, which the client reports as a role
   mismatch rather than a broken session.

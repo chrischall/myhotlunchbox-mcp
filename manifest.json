@@ -141,10 +141,6 @@
       "description": "List gift cards on the account — codes, balances and status."
     },
     {
-      "name": "mhlb_list_past_deliveries",
-      "description": "List past (archived) lunch deliveries for the account."
-    },
-    {
       "name": "mhlb_list_students",
       "description": "List the students on the account: id, first name, school, grade/teacher, whether they have orders, and whether the profile is inactive or still an unaccepted invite."
     },
@@ -157,32 +153,20 @@
       "description": "List payment transactions on the account — date, amount, and what was paid for."
     },
     {
-      "name": "mhlb_list_upcoming_deliveries",
-      "description": "List upcoming lunch deliveries for the account."
-    },
-    {
-      "name": "mhlb_list_vendors",
-      "description": "List the food vendors matched to the account’s schools — who is actually able to deliver lunch."
-    },
-    {
       "name": "mhlb_new_student_form",
       "description": "Get a blank student profile plus the school/grade/teacher dropdown options, ready to fill in and pass to mhlb_create_student."
     },
     {
-      "name": "mhlb_next_delivery",
-      "description": "Get the next scheduled lunch delivery for the account — date, school, and what is coming."
-    },
-    {
       "name": "mhlb_print_calendar",
-      "description": "Generate the printable lunch calendar for a date range."
+      "description": "Generate the printable lunch calendar PDF for a date range."
     },
     {
       "name": "mhlb_print_orders",
-      "description": "Generate the printable orders report for a date range — the same PDF the site’s Print button produces."
+      "description": "Generate the printable order-details PDF for a single lunch date."
     },
     {
-      "name": "mhlb_print_transactions",
-      "description": "Generate the printable transactions report for a date range."
+      "name": "mhlb_print_transaction",
+      "description": "Generate the printable receipt PDF for one transaction."
     },
     {
       "name": "mhlb_remove_coupon",
