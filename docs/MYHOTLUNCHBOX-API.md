@@ -174,7 +174,41 @@ Four things, all of which would have shipped broken:
    are reached from `school-calendar` and a different (school/vendor) dashboard
    chunk. The tools that wrapped them were removed rather than shipped dead.
 
-**UNVERIFIED** — every write endpoint. Their paths, verbs and query parameters
+**Write SHAPES captured, not exercised.** `scripts/capture-writes.mjs` stands a
+local proxy in front of the API: reads are forwarded to the real service, so
+every model a write echoes back is genuine server output, and writes are
+answered locally and recorded. The forwarding rule is **default-deny on POST** —
+only the read-POSTs in `READ_POSTS` are relayed — so a write endpoint added
+later and not listed is blocked rather than forwarded. It also proves all 13
+mutating tools send **nothing** without `confirm: true`.
+
+That capture, checked against the site's own compiled call sites, corrected four
+payloads that had been guesses:
+
+| endpoint | what the site actually sends |
+|---|---|
+| `/event/deleteOrder` | `{orderId, isRepeated, eventDate, studentId, isSubscribed}` — **not** the order model |
+| `/event/unsubcribeOrder` | the same payload; `order-mixin` picks the endpoint by `isSubscribed` |
+| `/payment/initCheckout` | `{orderIds, checkoutType, couponCode, giftCardCode, schoolDonations}`, nulls sent explicitly |
+| `/payment/checkout` | the above plus `{availableCredits, idempotencyKey, stripeToken}` |
+
+Two consequences worth stating plainly:
+
+- **`stripeToken` cannot be produced server-side.** The site sets it only when
+  paying by a *new* card, from `Stripe.createToken` in the browser. So
+  `mhlb_checkout` can only pay with a card **already saved** on the account; a
+  new card has to be added on the site.
+- **`idempotencyKey` is client-generated** — `${crypto.randomUUID()}-${Date.now()}`
+  in the site's `form-mixin`, held in session storage across retries. The tool
+  generates one and returns it, and accepts one back, so a retry after an
+  ambiguous failure is not a second charge.
+
+Order status enum for `printOrders` and the cart: `Pending: 0, Paid: 1, Credited: 2`.
+
+**STILL UNVERIFIED** — that the server *accepts* any of these bodies. Shape is
+not acceptance: only a real write shows that, and none has been made.
+
+Previously, of every write endpoint: Their paths, verbs and query parameters
 come from the compiled client and are reliable; their **request bodies** have
 not been exercised against a live account. Each corresponding tool carries the
 same marker in its description and refuses to act without `confirm: true`,

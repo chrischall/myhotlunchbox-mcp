@@ -8,3 +8,6 @@ coverage/
 # Report output from the print tools (default dir is the cwd)
 *.pdf
 *.tgz
+
+# Output of scripts/capture-writes.mjs — contains real student/order ids
+captured-writes.json

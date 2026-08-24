@@ -71,6 +71,33 @@ path — it drives all 20 read tools through the built client, measures coverage
 against the roster rather than against its own row list, and exits non-zero on
 failure.
 
+## Write payloads are captured, and four were wrong
+
+`npm run capture:writes` proxies the API: reads forwarded, writes answered
+locally and recorded. The forwarding rule is **default-deny on POST** — only
+`READ_POSTS` is relayed — so an unlisted write endpoint is blocked, never
+forwarded. Keep it that way; the failure mode must stay "missing capture",
+never "accidental mutation".
+
+It corrected four payloads that had been opaque `z.record` pass-throughs:
+
+- `/event/deleteOrder` and `/event/unsubcribeOrder` take
+  `{orderId, isRepeated, eventDate, studentId, isSubscribed}` — NOT the order
+  model. The site's `order-mixin` builds exactly that and picks the endpoint by
+  `isSubscribed`. Do not widen these back to a record.
+- `/payment/initCheckout` and `/payment/checkout` take
+  `{orderIds, checkoutType, couponCode, giftCardCode, schoolDonations}` with the
+  nulls sent explicitly, plus `{availableCredits, idempotencyKey, stripeToken}`
+  on checkout.
+
+`stripeToken` is deliberately never sent: the site mints it with Stripe.js for a
+NEW card only, so a server-side client can serve the saved-card case and nothing
+else. `idempotencyKey` is client-generated
+(`${crypto.randomUUID()}-${Date.now()}`) and is returned to the caller so a
+retry reuses it.
+
+`captured-writes.json` is gitignored — it holds real student and order ids.
+
 ## Writes are unverified
 
 Paths and verbs came from the compiled client and are reliable; request bodies

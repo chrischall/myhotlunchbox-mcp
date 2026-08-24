@@ -40,7 +40,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "verify:reads": "node scripts/verify-reads.mjs",
+    "capture:writes": "node scripts/capture-writes.mjs"
   },
   "dependencies": {
     "@chrischall/mcp-utils": "^0.15.0",

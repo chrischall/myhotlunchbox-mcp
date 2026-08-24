@@ -15,6 +15,46 @@ const OrderModel = z
   .record(z.string(), z.unknown())
   .describe('The order model, as returned by mhlb_get_order_form / mhlb_get_order, with quantities and options edited.');
 
+/**
+ * Cancelling and unsubscribing take a small identifier payload — NOT the order
+ * model the create/edit pair round-trips. Captured from the site's own
+ * `order-mixin`, which builds exactly
+ * `{orderId, isRepeated, eventDate, studentId, isSubscribed}`.
+ *
+ * Spelling this out rather than accepting an opaque record is the point: an
+ * agent handed "the order payload" sends the 40-field model, which is not what
+ * these endpoints read.
+ */
+export const OrderRefShape = {
+  orderId: PositiveInt.describe('Order id, from mhlb_get_calendar or mhlb_get_cart.'),
+  eventDate: IsoDate.describe('The lunch date of that order (YYYY-MM-DD).'),
+  studentId: PositiveInt.describe('Student the order belongs to.'),
+  isRepeated: z
+    .boolean()
+    .optional()
+    .describe('true acts on the whole recurring series, not just this date. Defaults to false.'),
+  isSubscribed: z
+    .boolean()
+    .optional()
+    .describe('Whether the order is a subscription. Defaults to false.'),
+};
+
+export function orderRefBody(ref: {
+  orderId: number;
+  eventDate: string;
+  studentId: number;
+  isRepeated?: boolean;
+  isSubscribed?: boolean;
+}): Record<string, unknown> {
+  return {
+    orderId: ref.orderId,
+    eventDate: ref.eventDate,
+    studentId: ref.studentId,
+    isRepeated: ref.isRepeated ?? false,
+    isSubscribed: ref.isSubscribed ?? false,
+  };
+}
+
 export function registerOrderTools(server: McpServer, client: MhlbClient): void {
   server.registerTool(
     'mhlb_get_cart',
@@ -155,20 +195,17 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
         'Cancel a lunch order. If it was already paid for, the refund behaviour is whatever My Hot Lunchbox ' +
         'applies — this tool does not control it.' + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Delete order', readOnly: false, openWorld: true }),
-      inputSchema: {
-        order: z
-          .record(z.string(), z.unknown())
-          .describe('The order identifier payload, as returned by mhlb_get_order or listed in mhlb_get_cart.'),
-        confirm: schemaConfirm,
-      },
+      inputSchema: { ...OrderRefShape, confirm: schemaConfirm },
     },
-    async ({ order, confirm }) => {
+    async ({ confirm, ...ref }) => {
+      const body = orderRefBody(ref);
       if (!confirm) {
-        return preview('Delete order', { method: 'POST', path: '/event/deleteOrder', body: order }, [
+        return preview('Delete order', { method: 'POST', path: '/event/deleteOrder', body }, [
           'Cancelling a paid order may or may not refund it — verify on the site afterwards.',
+          'isRepeated: true removes the whole recurring series, not just this date.',
         ]);
       }
-      return jsonResult(await client.write('/event/deleteOrder', order));
+      return jsonResult(await client.write('/event/deleteOrder', body));
     },
   );
 }

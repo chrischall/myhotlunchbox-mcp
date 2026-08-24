@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createTestHarness, parseToolResult } from '@chrischall/mcp-utils/test';
 import { MhlbClient } from '../src/client.js';
-import { findTotal } from '../src/tools/checkout.js';
 import { registerAccountTools } from '../src/tools/account.js';
 import { registerStudentTools } from '../src/tools/students.js';
 import { registerCalendarTools } from '../src/tools/calendar.js';
@@ -43,14 +42,14 @@ const WRITE_TOOLS: Array<[string, Record<string, unknown>]> = [
   ['mhlb_delete_student', { studentId: 1 }],
   ['mhlb_create_order', { order: { eventId: 1 } }],
   ['mhlb_update_order', { order: { orderId: 1 } }],
-  ['mhlb_delete_order', { order: { orderId: 1 } }],
+  ['mhlb_delete_order', { orderId: 1, eventDate: '2026-09-14', studentId: 2 }],
   ['mhlb_set_subscription_enabled', { enabled: true }],
-  ['mhlb_unsubscribe_order', { order: { orderId: 1 } }],
+  ['mhlb_unsubscribe_order', { orderId: 1, eventDate: '2026-09-14', studentId: 2 }],
   ['mhlb_apply_gift_card', { code: 'GC-1' }],
   ['mhlb_apply_coupon', { code: 'SAVE10' }],
   ['mhlb_remove_coupon', {}],
-  ['mhlb_init_checkout', { cart: { orderIds: [1] } }],
-  ['mhlb_checkout', { payment: { totalPrice: 10 }, expectedTotal: 10 }],
+  ['mhlb_init_checkout', { orderIds: [1] }],
+  ['mhlb_checkout', { orderIds: [1], expectedTotal: 10 }],
 ];
 
 describe('confirm gating', () => {
@@ -146,56 +145,110 @@ describe('read tools', () => {
 });
 
 describe('checkout safety', () => {
-  it('refuses to pay when expectedTotal disagrees with the payload total', async () => {
+  it('sends the payload shape the site sends, with explicit nulls', async () => {
+    const { harness, fetchSpy } = await harnessWithSpy({ receiptId: 9 });
+    try {
+      await harness.callTool('mhlb_checkout', { orderIds: [11, 12], expectedTotal: 42.5, confirm: true });
+      const call = fetchSpy.mock.calls.find((c) => String(c[0]).includes('/payment/checkout'));
+      const body = JSON.parse(String((call?.[1] as RequestInit).body)) as Record<string, unknown>;
+      expect(body.orderIds).toEqual([11, 12]);
+      // The site sends these keys explicitly rather than omitting them.
+      expect(body).toHaveProperty('checkoutType', null);
+      expect(body).toHaveProperty('couponCode', null);
+      expect(body).toHaveProperty('giftCardCode', null);
+      expect(body).toHaveProperty('schoolDonations', null);
+      // Never a stripeToken: only Stripe.js in a browser can mint one.
+      expect(body).not.toHaveProperty('stripeToken');
+      expect(String(body.idempotencyKey)).toMatch(/^[0-9a-f-]{36}-\d+$/);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  it('reuses a caller-supplied idempotency key so a retry is not a second charge', async () => {
+    const { harness, fetchSpy } = await harnessWithSpy({ receiptId: 9 });
+    try {
+      const key = 'fixed-key-1';
+      for (let i = 0; i < 2; i += 1) {
+        await harness.callTool('mhlb_checkout', {
+          orderIds: [11],
+          expectedTotal: 1,
+          idempotencyKey: key,
+          confirm: true,
+        });
+      }
+      const sent = fetchSpy.mock.calls
+        .filter((c) => String(c[0]).includes('/payment/checkout'))
+        .map((c) => JSON.parse(String((c[1] as RequestInit).body)).idempotencyKey);
+      expect(sent).toEqual([key, key]);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  it('refuses to pay a non-zero total with no orderIds', async () => {
     const { harness, fetchSpy } = await harnessWithSpy();
     try {
-      const body = parseToolResult<{ charged: boolean; payloadTotal: number }>(
-        await harness.callTool('mhlb_checkout', {
-          payment: { totalPrice: 42.5 },
-          expectedTotal: 10,
-          confirm: true,
-        }),
-      );
-      expect(body.charged).toBe(false);
-      expect(body.payloadTotal).toBe(42.5);
+      const result = await harness.callTool('mhlb_checkout', {
+        orderIds: [],
+        expectedTotal: 25,
+        confirm: true,
+      });
+      expect(result.isError).toBe(true);
       expect(fetchSpy).not.toHaveBeenCalled();
     } finally {
       await harness.close();
     }
   });
 
-  it('pays when the totals agree', async () => {
-    const { harness, fetchSpy } = await harnessWithSpy({ receiptId: 9 });
-    try {
-      await harness.callTool('mhlb_checkout', {
-        payment: { totalPrice: 42.5 },
-        expectedTotal: 42.5,
-        confirm: true,
-      });
-      expect(fetchSpy.mock.calls.some((c) => String(c[0]).includes('/payment/checkout'))).toBe(true);
-    } finally {
-      await harness.close();
-    }
-  });
-
-  it('warns in the dry run when no total can be cross-checked', async () => {
+  it('says in the dry run that only a saved card can be used', async () => {
     const { harness } = await harnessWithSpy();
     try {
       const body = parseToolResult<{ notes: string[] }>(
-        await harness.callTool('mhlb_checkout', { payment: { foo: 'bar' }, expectedTotal: 5 }),
+        await harness.callTool('mhlb_checkout', { orderIds: [1], expectedTotal: 5 }),
       );
-      expect(body.notes.join(' ')).toMatch(/cannot be cross-checked/i);
+      expect(body.notes.join(' ')).toMatch(/already saved on the account/i);
+      expect(body.notes.join(' ')).toMatch(/Idempotency key/i);
     } finally {
       await harness.close();
     }
   });
 
-  it('findTotal reads the common spellings and gives up cleanly otherwise', () => {
-    expect(findTotal({ totalPrice: 12 })).toBe(12);
-    expect(findTotal({ amount: '8.25' })).toBe(8.25);
-    expect(findTotal({ grandTotal: 0 })).toBe(0);
-    expect(findTotal({ nothing: 'here' })).toBeNull();
-    expect(findTotal({ amount: '' })).toBeNull();
-    expect(findTotal({ total: Number.NaN })).toBeNull();
+  it('mhlb_delete_order sends the identifier payload, not the order model', async () => {
+    const { harness, fetchSpy } = await harnessWithSpy();
+    try {
+      await harness.callTool('mhlb_delete_order', {
+        orderId: 7,
+        eventDate: '2026-09-14',
+        studentId: 3,
+        confirm: true,
+      });
+      const call = fetchSpy.mock.calls.find((c) => String(c[0]).includes('/event/deleteOrder'));
+      expect(JSON.parse(String((call?.[1] as RequestInit).body))).toEqual({
+        orderId: 7,
+        eventDate: '2026-09-14',
+        studentId: 3,
+        isRepeated: false,
+        isSubscribed: false,
+      });
+    } finally {
+      await harness.close();
+    }
+  });
+
+  it('mhlb_unsubscribe_order defaults isSubscribed to true', async () => {
+    const { harness, fetchSpy } = await harnessWithSpy();
+    try {
+      await harness.callTool('mhlb_unsubscribe_order', {
+        orderId: 7,
+        eventDate: '2026-09-14',
+        studentId: 3,
+        confirm: true,
+      });
+      const call = fetchSpy.mock.calls.find((c) => String(c[0]).includes('/event/unsubcribeOrder'));
+      expect(JSON.parse(String((call?.[1] as RequestInit).body))).toMatchObject({ isSubscribed: true });
+    } finally {
+      await harness.close();
+    }
   });
 });
