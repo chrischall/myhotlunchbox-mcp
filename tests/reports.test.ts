@@ -75,7 +75,11 @@ describe('report tools', () => {
     const { h } = await harness();
     try {
       const body = parseToolResult<{ path: string; bytes: number; contentType: string }>(
-        await h.callTool('mhlb_print_calendar', { startDate: '2026-09-01', endDate: '2026-09-30' }),
+        await h.callTool('mhlb_print_calendar', {
+          startDate: '2026-09-01',
+          endDate: '2026-09-30',
+          studentIds: [7],
+        }),
       );
       expect(body.contentType).toBe('application/pdf');
       expect(existsSync(body.path)).toBe(true);
@@ -114,6 +118,7 @@ describe('report tools', () => {
         await h.callTool('mhlb_print_calendar', {
           startDate: '2026-09-01',
           endDate: '2026-09-30',
+          studentIds: [7],
           inline: true,
         }),
       );
@@ -131,6 +136,7 @@ describe('report tools', () => {
       const result = await h.callTool('mhlb_print_calendar', {
         startDate: '2026-09-01',
         endDate: '2026-09-30',
+        studentIds: [7],
         filename: '../escaped.pdf',
       });
       expect(result.isError).toBe(true);
@@ -179,6 +185,114 @@ describe('report tools', () => {
     } finally {
       await h.close();
     }
+  });
+
+  it('rejects a blank filename instead of writing a hidden ".pdf"', async () => {
+    process.env.MYHOTLUNCHBOX_OUTPUT_DIR = scratch();
+    const { h } = await harness();
+    try {
+      const result = await h.callTool('mhlb_print_calendar', {
+        startDate: '2026-09-01',
+        endDate: '2026-09-30',
+        studentIds: [7],
+        filename: '   ',
+      });
+      expect(result.isError).toBe(true);
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('refuses to return an oversized report inline', async () => {
+    const big = new Uint8Array(800_000);
+    big.set(new TextEncoder().encode('%PDF-1.4'));
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      return (
+        tokenHandler()(url) ??
+        new Response(big, { status: 200, headers: { 'content-type': 'application/pdf' } })
+      );
+    });
+    const client = new MhlbClient(testConfig(), fetchSpy as unknown as typeof fetch);
+    const h = await createTestHarness((server) => registerReportTools(server, client));
+    try {
+      const result = await h.callTool('mhlb_print_calendar', {
+        startDate: '2026-09-01',
+        endDate: '2026-09-30',
+        studentIds: [7],
+        inline: true,
+      });
+      expect(result.isError).toBe(true);
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('mhlb_print_calendar refuses an empty studentIds list at the schema', async () => {
+    // Verified live: the endpoint 500s on an empty or omitted list — there is
+    // no "all students" default on either print endpoint.
+    const { h } = await harness();
+    try {
+      const result = await h.callTool('mhlb_print_calendar', {
+        startDate: '2026-09-01',
+        endDate: '2026-09-30',
+        studentIds: [],
+      });
+      expect(result.isError).toBe(true);
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('reports an HTML 200 as a lapsed session, not a PDF written to disk', async () => {
+    process.env.MYHOTLUNCHBOX_OUTPUT_DIR = scratch();
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      return (
+        tokenHandler()(url) ??
+        new Response('<html>sign in</html>', { status: 200, headers: { 'content-type': 'text/html' } })
+      );
+    });
+    const client = new MhlbClient(testConfig(), fetchSpy as unknown as typeof fetch);
+    const h = await createTestHarness((server) => registerReportTools(server, client));
+    try {
+      const result = await h.callTool('mhlb_print_calendar', {
+        startDate: '2026-09-01',
+        endDate: '2026-09-30',
+        studentIds: [7],
+      });
+      expect(result.isError).toBe(true);
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('classifies a 429 on the binary path the same as on the JSON path', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      return (
+        tokenHandler()(url) ??
+        new Response('slow down', { status: 429, headers: { 'retry-after': '30' } })
+      );
+    });
+    const client = new MhlbClient(testConfig(), fetchSpy as unknown as typeof fetch);
+    const err = await client
+      .writeBinary('/parentReports/printCalendar', {})
+      .catch((e: Error & { retryAfterSeconds?: number }) => e);
+    expect((err as Error).message).toMatch(/rate/i);
+    expect((err as { retryAfterSeconds?: number }).retryAfterSeconds).toBe(30);
+  });
+
+  it('classifies a 403 on the binary path as a role mismatch', async () => {
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      return tokenHandler()(url) ?? new Response('denied', { status: 403 });
+    });
+    const client = new MhlbClient(testConfig(), fetchSpy as unknown as typeof fetch);
+    const err = await client
+      .writeBinary('/parentReports/printCalendar', {})
+      .catch((e: Error & { hint?: string }) => e);
+    expect((err as { hint?: string }).hint).toMatch(/not available to a parent account/i);
   });
 
   it('explains a 500 as a no-match rather than "service is down"', async () => {

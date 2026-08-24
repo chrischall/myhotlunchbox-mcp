@@ -38,7 +38,7 @@ still works; the configuration error surfaces on the first tool call.
 
 ## Tools
 
-34 tools, all prefixed `mhlb_`. Every read path is verified live against a real parent account.
+34 tools, all prefixed `mhlb_`. All 20 read tools are verified live against a real parent account (`node scripts/verify-reads.mjs`); the 14 write tools are not — see below.
 
 **Account** — `mhlb_whoami`, `mhlb_session_reset`
 

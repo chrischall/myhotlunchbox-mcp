@@ -68,29 +68,46 @@ export class MhlbClient {
     return this.parse<T>(res, method, path);
   }
 
+  /**
+   * Map a non-2xx response onto a typed error. Shared by the JSON and binary
+   * paths so a 429 or a role mismatch is classified identically whichever tool
+   * hit it.
+   *
+   * `serverErrorHint` overrides the 5xx branch: the report endpoints answer 500
+   * for a request that matches nothing, which is a caller mistake dressed as a
+   * server fault, not an outage.
+   */
+  private classify(res: Response, method: string, path: string, raw: string, serverErrorHint?: string): never {
+    if (res.status === 429) {
+      const retryAfter = Number(res.headers.get('retry-after'));
+      throw new RateLimitError('My Hot Lunchbox', Number.isFinite(retryAfter) ? retryAfter : undefined);
+    }
+    if (res.status === 403) {
+      throw new McpToolError(`My Hot Lunchbox refused ${method} ${path} (HTTP 403).`, {
+        hint:
+          'This endpoint is not available to a parent account — the same API also serves school-admin and vendor roles. ' +
+          'Check that the tool matches your account role.',
+      });
+    }
+    if (res.status >= 500) {
+      if (serverErrorHint) {
+        throw new McpToolError(
+          `My Hot Lunchbox failed to generate the report (HTTP ${res.status}) for ${method} ${path}.`,
+          { hint: serverErrorHint },
+        );
+      }
+      throw new UnreachableError('My Hot Lunchbox', res.status);
+    }
+    throw new McpToolError(
+      `My Hot Lunchbox returned HTTP ${res.status} for ${method} ${path}: ${this.scrub(raw)}`,
+      { hint: res.status === 400 ? 'The request body or query was rejected. Re-read the resource and resend the model it returned.' : undefined },
+    );
+  }
+
   private async parse<T>(res: Response, method: string, path: string): Promise<T> {
     const raw = await res.text();
 
-    if (!res.ok) {
-      if (res.status === 429) {
-        const retryAfter = Number(res.headers.get('retry-after'));
-        throw new RateLimitError('My Hot Lunchbox', Number.isFinite(retryAfter) ? retryAfter : undefined);
-      }
-      if (res.status >= 500) {
-        throw new UnreachableError('My Hot Lunchbox', res.status);
-      }
-      if (res.status === 403) {
-        throw new McpToolError(`My Hot Lunchbox refused ${method} ${path} (HTTP 403).`, {
-          hint:
-            'This endpoint is not available to a parent account — the same API also serves school-admin and vendor roles. ' +
-            'Check that the tool matches your account role.',
-        });
-      }
-      throw new McpToolError(
-        `My Hot Lunchbox returned HTTP ${res.status} for ${method} ${path}: ${this.scrub(raw)}`,
-        { hint: res.status === 400 ? 'The request body or query was rejected. Re-read the resource and resend the model it returned.' : undefined },
-      );
-    }
+    if (!res.ok) this.classify(res, method, path, raw);
 
     if (raw.trim() === '') return null as T;
 
@@ -148,28 +165,29 @@ export class MhlbClient {
     );
 
     if (!res.ok) {
-      const raw = await res.text();
-      if (res.status >= 500) {
-        // These report endpoints answer 500 (not 4xx) for an empty studentIds
-        // list or a date carrying no matching order — a caller mistake dressed
-        // as a server fault. Say so rather than advising "try again later".
-        throw new McpToolError(
-          `My Hot Lunchbox failed to generate the report (HTTP ${res.status}) for POST ${path}.`,
-          {
-            hint:
-              'This endpoint also answers 500 when the request matches nothing: check that studentIds is ' +
-              'non-empty and that the date actually has an order in the status you asked for.',
-          },
-        );
-      }
-      throw new McpToolError(
-        `My Hot Lunchbox returned HTTP ${res.status} for POST ${path}: ${this.scrub(raw)}`,
-        { hint: 'The report request body was rejected — check the date and student arguments.' },
+      this.classify(
+        res,
+        'POST',
+        path,
+        await res.text(),
+        'This endpoint also answers 500 when the request matches nothing: check that studentIds is ' +
+          'non-empty and that the date actually has an order in the status you asked for.',
       );
     }
 
+    const contentType = res.headers.get('content-type') ?? 'application/octet-stream';
     const bytes = new Uint8Array(await res.arrayBuffer());
-    return { bytes, contentType: res.headers.get('content-type') ?? 'application/octet-stream' };
+
+    // A 200 carrying HTML is the session having lapsed into a sign-in page.
+    // Writing that to disk as a .pdf would look like success.
+    if (/text\/html|application\/json/i.test(contentType)) {
+      throw new McpToolError(
+        `My Hot Lunchbox returned ${contentType} for POST ${path}, not a document.`,
+        { hint: 'The session may have lapsed. Run mhlb_session_reset and retry.' },
+      );
+    }
+
+    return { bytes, contentType };
   }
 
   /** Drop the in-process session (used by the session tool and by tests). */

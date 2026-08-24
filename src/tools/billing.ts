@@ -24,10 +24,10 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
     {
       description: 'Get the line-item detail of one transaction — which lunches it paid for.',
       annotations: toolAnnotations({ title: 'Get transaction', openWorld: true }),
-      inputSchema: { transactionId: PositiveInt.describe('Transaction id from mhlb_list_transactions.') },
+      inputSchema: { transactionId: PositiveInt.describe('Transaction id (the `id` field from mhlb_list_transactions).') },
     },
-    async ({ transactionId }) =>
-      jsonResult(await client.get('/event/transactionDetails', { transactionId })),
+    // The query parameter is `id`, not `transactionId` — verified live.
+    async ({ transactionId }) => jsonResult(await client.get('/event/transactionDetails', { id: transactionId })),
   );
 
   server.registerTool(

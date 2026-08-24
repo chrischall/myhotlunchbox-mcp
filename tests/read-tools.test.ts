@@ -28,7 +28,7 @@ const READ_TOOLS: Array<[string, Record<string, unknown>, string]> = [
   ['mhlb_get_order_form', { eventId: 2, studentId: 1 }, '/api/event/createOrder?eventId=2&studentId=1'],
   ['mhlb_get_order', { orderId: 3 }, '/api/event/editOrder?orderId=3'],
   ['mhlb_list_transactions', {}, '/api/event/transactionsList'],
-  ['mhlb_get_transaction', { transactionId: 9 }, '/api/event/transactionDetails?transactionId=9'],
+  ['mhlb_get_transaction', { transactionId: 9 }, '/api/event/transactionDetails?id=9'],
   ['mhlb_list_subscriptions', {}, '/api/event/upcomingSubscriptions'],
   ['mhlb_get_subscription_settings', {}, '/api/event/subscription'],
   ['mhlb_list_gift_cards', {}, '/api/parent/giftCardDataTables'],

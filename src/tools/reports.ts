@@ -34,6 +34,11 @@ export function nonClobberingPath(dir: string, filename: string): string {
 
 /** Reject a filename that would escape the output directory. */
 function safeName(name: string): string {
+  if (name.trim() === '') {
+    throw new McpToolError('Report filename is empty.', {
+      hint: 'Omit filename to take the default, or pass a non-blank name.',
+    });
+  }
   if (name.includes('/') || name.includes('\\') || name.includes('..') || isAbsolute(name)) {
     throw new McpToolError(`Unsafe report filename: ${name}`, {
       hint: 'filename must be a bare name, with no path separators.',
@@ -64,9 +69,17 @@ function deliver(
   }
 
   const dir = outputDir();
-  mkdirSync(dir, { recursive: true });
-  const path = nonClobberingPath(dir, filename);
-  writeFileSync(path, bytes);
+  let path: string;
+  try {
+    mkdirSync(dir, { recursive: true });
+    path = nonClobberingPath(dir, filename);
+    writeFileSync(path, bytes);
+  } catch (cause) {
+    throw new McpToolError(`Could not write the report into ${dir}.`, {
+      hint: 'Set MYHOTLUNCHBOX_OUTPUT_DIR to a writable directory, or call again with inline: true.',
+      cause,
+    });
+  }
   return jsonResult({ path, contentType, bytes: bytes.byteLength });
 }
 
@@ -88,14 +101,17 @@ export function registerReportTools(server: McpServer, client: MhlbClient): void
       description:
         'Generate the printable lunch calendar PDF for a date range. Writes the PDF to disk and returns its ' +
         'path (or the bytes inline with inline: true).',
-      annotations: toolAnnotations({ title: 'Print lunch calendar', openWorld: true }),
+      annotations: toolAnnotations({ title: 'Print lunch calendar', readOnly: false, openWorld: true }),
       inputSchema: {
         startDate: IsoDate.describe('First day to include (YYYY-MM-DD).'),
         endDate: IsoDate.describe('Last day to include (YYYY-MM-DD).'),
         studentIds: z
           .array(PositiveInt)
-          .optional()
-          .describe('Students to include. Defaults to every student on the account.'),
+          .min(1)
+          .describe(
+            'Students to include — at least one, from mhlb_list_students. There is no "all students" ' +
+            'default: an empty or omitted list makes the endpoint fail.',
+          ),
         filename: z.string().optional().describe('Output filename. Defaults to "Lunch Calendar.pdf".'),
         inline: inlineFlag,
       },
@@ -105,7 +121,7 @@ export function registerReportTools(server: McpServer, client: MhlbClient): void
         start: startDate,
         end: endDate,
         middle: midpoint(startDate, endDate),
-        studentIds: studentIds ?? [],
+        studentIds,
       });
       return deliver(bytes, contentType, safeName(filename ?? 'Lunch Calendar.pdf'), inline ?? false);
     },
@@ -118,7 +134,7 @@ export function registerReportTools(server: McpServer, client: MhlbClient): void
         'Generate the printable order-details PDF for a single lunch date. Note this is one date, not a range, ' +
         'and studentIds is required — the endpoint fails if it is empty, or if no order matches the date and ' +
         'status you ask for. Get both from mhlb_get_calendar.',
-      annotations: toolAnnotations({ title: 'Print order details', openWorld: true }),
+      annotations: toolAnnotations({ title: 'Print order details', readOnly: false, openWorld: true }),
       inputSchema: {
         date: IsoDate.describe('The lunch date to report on (YYYY-MM-DD).'),
         orderStatus: z
@@ -149,7 +165,7 @@ export function registerReportTools(server: McpServer, client: MhlbClient): void
       description:
         'Generate the printable receipt PDF for one transaction. Pass the transaction object from ' +
         'mhlb_get_transaction — the endpoint renders that record, it does not look one up by id.',
-      annotations: toolAnnotations({ title: 'Print transaction receipt', openWorld: true }),
+      annotations: toolAnnotations({ title: 'Print transaction receipt', readOnly: false, openWorld: true }),
       inputSchema: {
         transaction: z
           .record(z.string(), z.unknown())

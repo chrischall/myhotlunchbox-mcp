@@ -65,7 +65,7 @@ mhlb_get '/event/orderBaseData?studentId=456&eventDate=2026-09-14' | jq .
 
 ```sh
 mhlb_get /event/transactionsList              | jq .
-mhlb_get '/event/transactionDetails?transactionId=999' | jq .
+mhlb_get '/event/transactionDetails?id=999' | jq .   # id comes from transactionsList
 mhlb_get /event/subscription                  | jq .
 mhlb_get '/event/upcomingSubscriptions'       | jq .
 ```
@@ -88,7 +88,9 @@ mhlb_pdf() {  # usage: mhlb_pdf <endpoint> <json> <out.pdf>
     -H 'Content-Type: application/json' -d "$2" -o "$3" && file "$3"
 }
 
-# Calendar — needs `middle`, the midpoint date, which titles the PDF
+# Calendar — needs `middle` (the midpoint date, which titles the PDF) and a
+# NON-EMPTY studentIds. There is no "all students" default: an empty or omitted
+# list answers 500, same as printOrders.
 mhlb_pdf /parentReports/printCalendar \
   '{"start":"2026-09-01","end":"2026-09-30","middle":"2026-09-15","studentIds":[111627]}' \
   'Lunch Calendar.pdf'
@@ -100,12 +102,23 @@ mhlb_pdf /parentReports/printOrders \
   'Orders Details.pdf'
 
 # One transaction receipt — send the whole record from transactionsList
-mhlb_get /event/transactionsList | jq -c '.transactions[0] + {isCreditType:false}' > tx.json
+ID=$(mhlb_get /event/transactionsList | jq -r '.transactions[0].id')
+mhlb_get "/event/transactionDetails?id=$ID" | jq -c '. + {isCreditType:false}' > tx.json
 mhlb_pdf /parentReports/printTransactions "$(cat tx.json)" 'Transaction.pdf'
 ```
 
-`printOrders` answers **500** — not a 4xx — when `studentIds` is empty or no
-order matches the date and status. Treat a 500 here as a bad request.
+Both `printCalendar` and `printOrders` answer **500** — not a 4xx — when
+`studentIds` is empty, and `printOrders` also 500s when no order matches the
+date and status. Treat a 500 from either as a bad request, not an outage.
+
+`printTransactions` wants the record from `/event/transactionDetails`, **not** a
+row from `/event/transactionsList` — both render, but they are different shapes
+and different documents. Get the id from the list, then fetch the record:
+
+```sh
+ID=$(mhlb_get /event/transactionsList | jq -r '.transactions[0].id')
+mhlb_get "/event/transactionDetails?id=$ID" | jq -c '. + {isCreditType:false}' > tx.json
+```
 
 ## Writes — all UNVERIFIED
 

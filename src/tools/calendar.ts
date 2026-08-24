@@ -1,5 +1,4 @@
 import { toolAnnotations, PositiveInt, IsoDate } from '@chrischall/mcp-utils';
-import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { MhlbClient } from '../client.js';
 import { jsonResult } from './_shared.js';

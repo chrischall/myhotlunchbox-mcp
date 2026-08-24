@@ -58,8 +58,18 @@ running against a real account. Do not "simplify" any of them back:
 (403, verified live) even though they sit in chunks the parent bundle loads.
 Tools for them were removed; don't re-add them from the extraction.
 
+`/parentReports/printCalendar` **also** 500s on an empty or omitted
+`studentIds` — same as `printOrders`. Neither has an "all students" default, so
+both schemas require `.min(1)`.
+
+`mhlb_print_transaction` wants the record from `/event/transactionDetails`, not
+a row from `/event/transactionsList`. Both render, but they are different shapes
+and different documents.
+
 Re-run `node scripts/verify-reads.mjs` (needs `.env`) after touching any read
-path — it drives all 18 through the built client.
+path — it drives all 20 read tools through the built client, measures coverage
+against the roster rather than against its own row list, and exits non-zero on
+failure.
 
 ## Writes are unverified
 

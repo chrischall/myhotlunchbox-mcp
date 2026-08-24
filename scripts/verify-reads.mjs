@@ -51,7 +51,10 @@ await run('mhlb_whoami', () => client.get('/auth/userinfo'));
 
 console.log('\n== students ==');
 const students = await run('mhlb_list_students', () => client.get('/parent/childrenInfo'));
-const studentId = Array.isArray(students) && students[0]?.id;
+const studentIds = (Array.isArray(students) ? students : []).map((s) => s.id);
+const studentId = studentIds[0];
+await run('mhlb_new_student_form', () => client.get('/parent/createChild'));
+if (studentId) await run('mhlb_get_student_form', () => client.get('/parent/editChild', { childId: studentId }));
 
 console.log('\n== calendar & deliveries ==');
 const cal = await run('mhlb_get_calendar', () => client.write('/calendar/studentSchoolData', { start: monthStart, end: monthEnd }));
@@ -70,7 +73,12 @@ const ordered = events.find((e) => e.orderId);
 if (ordered) await run('mhlb_get_order', () => client.get('/event/editOrder', { orderId: ordered.orderId }));
 
 console.log('\n== billing ==');
-await run('mhlb_list_transactions', () => client.get('/event/transactionsList'));
+const txList = await run('mhlb_list_transactions', () => client.get('/event/transactionsList'));
+const txRow = (txList?.transactions ?? [])[0];
+const txRecord = txRow
+  ? await run('mhlb_get_transaction', () => client.get('/event/transactionDetails', { id: txRow.id }))
+  : null;
+if (!txRow) console.log('  SKIP mhlb_get_transaction — no transaction on the account');
 await run('mhlb_list_subscriptions', () => client.get('/event/upcomingSubscriptions'));
 await run('mhlb_get_subscription_settings', () => client.get('/event/subscription'));
 await run('mhlb_list_gift_cards', () => client.get('/parent/giftCardDataTables'));
@@ -82,7 +90,7 @@ await run('mhlb_print_calendar', async () =>
   pdf(await client.writeBinary('/parentReports/printCalendar', {
     start: monthStart, end: monthEnd,
     middle: new Date((Date.parse(monthStart) + Date.parse(monthEnd)) / 2).toISOString().slice(0, 10),
-    studentIds: (students ?? []).map((s) => s.id),
+    studentIds,
   })));
 if (paidEvent) {
   await run('mhlb_print_orders', async () =>
@@ -92,15 +100,38 @@ if (paidEvent) {
 } else {
   console.log('  SKIP mhlb_print_orders — no paid order in range to render');
 }
-const txList = await run('mhlb_list_transactions_again', () => client.get('/event/transactionsList'));
-const tx = (txList?.transactions ?? [])[0];
-if (tx) {
+if (txRecord) {
+  // The record from /event/transactionDetails, which is what mhlb_print_transaction
+  // documents — NOT a /event/transactionsList row (different shape entirely).
   await run('mhlb_print_transaction', async () =>
-    pdf(await client.writeBinary('/parentReports/printTransactions', { ...tx, isCreditType: false })));
+    pdf(await client.writeBinary('/parentReports/printTransactions', { ...txRecord, isCreditType: false })));
 } else {
   console.log('  SKIP mhlb_print_transaction — no transaction on the account');
 }
 
-const ok = results.filter((r) => r.ok).length;
-console.log(`\n${ok}/${results.length} read paths verified live.`);
-for (const r of results.filter((x) => !x.ok)) console.log(`  failed: ${r.label} — ${r.error}`);
+// Compare against the real roster rather than reporting a self-defined
+// denominator: a script that only counts the rows it happens to run can always
+// claim 100%.
+const READ_TOOLS = [
+  'mhlb_whoami', 'mhlb_list_students', 'mhlb_new_student_form', 'mhlb_get_student_form',
+  'mhlb_get_calendar', 'mhlb_get_day', 'mhlb_get_cart_tabs', 'mhlb_get_cart', 'mhlb_get_menu',
+  'mhlb_get_order_form', 'mhlb_get_order', 'mhlb_list_transactions', 'mhlb_get_transaction',
+  'mhlb_list_subscriptions', 'mhlb_get_subscription_settings', 'mhlb_list_gift_cards',
+  'mhlb_get_coupon', 'mhlb_print_calendar', 'mhlb_print_orders', 'mhlb_print_transaction',
+];
+
+const passed = new Set(results.filter((r) => r.ok).map((r) => r.label));
+const failed = results.filter((r) => !r.ok);
+const covered = READ_TOOLS.filter((t) => passed.has(t));
+const skipped = READ_TOOLS.filter((t) => !results.some((r) => r.label === t));
+
+console.log(`\n${covered.length}/${READ_TOOLS.length} read tools verified live.`);
+if (failed.length) {
+  console.log('failed:');
+  for (const r of failed) console.log(`  ${r.label} — ${r.error}`);
+}
+if (skipped.length) {
+  console.log('not exercised (account state did not provide the inputs):');
+  for (const t of skipped) console.log(`  ${t}`);
+}
+process.exitCode = failed.length ? 1 : 0;

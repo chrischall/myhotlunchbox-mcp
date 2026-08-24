@@ -126,16 +126,22 @@ Field names observed in the order model: `studentId`, `eventId`, `eventItemId`,
 
 ## Verification status
 
-**Verified live against a real parent account — 18/18 read paths.** The auth
+**Verified live against a real parent account — all 20 read tools.** The auth
 flow (probe above), the API base path, the absence of a bot wall and of a
 CAPTCHA, and every read endpoint the server wires: `/auth/userinfo`,
-`/parent/childrenInfo`, `/calendar/studentSchoolData`,
-`/calendar/studentOrderItems`, `/event/ShoppingCartBaseData`,
-`/event/shoppingCart`, `/event/orderBaseData`, `/event/createOrder` (GET),
-`/event/editOrder` (GET), `/event/transactionsList`,
+`/parent/childrenInfo`, `/parent/createChild` (GET), `/parent/editChild` (GET),
+`/calendar/studentSchoolData`, `/calendar/studentOrderItems`,
+`/event/ShoppingCartBaseData`, `/event/shoppingCart`, `/event/orderBaseData`,
+`/event/createOrder` (GET), `/event/editOrder` (GET),
+`/event/transactionsList`, `/event/transactionDetails`,
 `/event/upcomingSubscriptions`, `/event/subscription`,
 `/parent/giftCardDataTables`, `/parent/coupon`, and all three
 `/parentReports/print*` endpoints (each returning a real PDF).
+
+`scripts/verify-reads.mjs` measures coverage against the tool roster, not
+against the rows it happens to run, and exits non-zero on any failure. Rows that
+depend on account state (a paid order, an existing transaction) are reported as
+*not exercised* rather than silently counted.
 
 ### What live verification caught that the extraction did not
 
@@ -154,8 +160,9 @@ Four things, all of which would have shipped broken:
 3. **Their payloads are not date ranges.**
    `printCalendar` takes `{start, end, middle, studentIds}` — `middle` is the
    midpoint date, used to title the PDF. `printOrders` takes
-   `{orderStatus, eventDate, studentIds}` — a **single** date, and `studentIds`
-   must be **non-empty** or the endpoint answers `500`. It also answers `500`
+   `{orderStatus, eventDate, studentIds}` — a **single** date. **Both** require a
+   **non-empty** `studentIds`: an empty or omitted list answers `500` on either
+   endpoint (verified live). There is no "all students" default. It also answers `500`
    when no order matches the date and status, so a `500` here is usually a
    caller mistake dressed as a server fault. `printTransactions` takes a whole
    transaction record plus `isCreditType`, not a range.
