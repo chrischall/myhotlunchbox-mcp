@@ -1,10 +1,13 @@
-# How this MCP wants to be hosted on mcp-host (see mcp-host/docs/HOSTING-MANIFEST.md).
+# How this MCP wants to be hosted on mcp-host — the file its registration
+# preview reads to fill the wizard in, instead of someone guessing from the
+# README (mcp-host's own docs describe the format).
 #
-# The FILENAME is load-bearing: mcp-host matches it exactly, against
-# HOSTING_MANIFEST_FILE in packages/core/src/hosting-manifest-schema.ts. A name
-# the reader does not expect is not an error — it is simply never found, and the
-# registration preview falls back to inference with nothing to notice. If this
-# file ever looks ignored, check that constant first.
+# The FILENAME is load-bearing: the reader matches it exactly, and a name it
+# does not expect is not an error — it is simply never found, and the preview
+# falls back to inference with nothing to notice. The reader accepts the older
+# `mcp-host.yaml` as well, so the two names coexist. If this file ever looks
+# ignored, check the manifest-filename constant in mcp-host's core package
+# before looking anywhere else.
 #
 # This file is a PROPOSAL, never an application. It is read at the resolved pin
 # by the registration preview and rendered for a human; nothing here changes a
