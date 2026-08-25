@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.1](https://github.com/chrischall/myhotlunchbox-mcp/compare/v0.2.0...v0.2.1) (2026-08-25)
+
+
+### Bug Fixes
+
+* capture the real write payloads, and correct four that were guesses ([#16](https://github.com/chrischall/myhotlunchbox-mcp/issues/16)) ([784c1ce](https://github.com/chrischall/myhotlunchbox-mcp/commit/784c1ce24ee891106d51246636780c8ad5c64186))
+
+
+### Documentation
+
+* stop mint.yaml pointing at names the rename is about to change ([#19](https://github.com/chrischall/myhotlunchbox-mcp/issues/19)) ([d06c5fa](https://github.com/chrischall/myhotlunchbox-mcp/commit/d06c5fa3e562120690b9cec8d069fb639aaecdf1))
+
 ## [0.2.0](https://github.com/chrischall/myhotlunchbox-mcp/compare/v0.1.1...v0.2.0) (2026-08-24)
 
 
