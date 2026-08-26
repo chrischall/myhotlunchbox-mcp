@@ -188,3 +188,38 @@ describe('MhlbAuth', () => {
     await expect(auth.withAuth(async () => jsonResponse({ ok: true }))).resolves.toBeInstanceOf(Response);
   });
 });
+
+describe('MhlbAuth — a dead refresh does not trigger a third attempt', () => {
+  it('surfaces the failure after refresh and the login fallback both fail', async () => {
+    // `refresh` already recovers from a revoked refresh token by falling back to
+    // a full password login. Without `isRefreshRevoked: () => false`, the
+    // library would then run its OWN re-mint recovery on top — a third call to
+    // the same endpoint that just failed twice.
+    //
+    // The bootstrap has to SUCCEED first: a failed first login never reaches the
+    // recovery path, so mocking that would exercise nothing.
+    let logins = 0;
+    const fetchImpl = mockFetch([
+      (url, init) => {
+        if (!url.endsWith('/api/auth/login')) return undefined;
+        const body = String(init.body);
+        if (body.includes('grant_type=password')) {
+          logins += 1;
+          // First login succeeds with an already-expired token so the very next
+          // call must refresh; every later login fails.
+          if (logins === 1) {
+            return jsonResponse({ access_token: 'AT', refresh_token: 'RT', expires_in: -1 });
+          }
+          return jsonResponse({ error: 'invalid_grant' }, 400);
+        }
+        return jsonResponse({ error: 'invalid_grant' }, 400); // the refresh grant
+      },
+    ]);
+
+    const auth = new MhlbAuth(testConfig(), fetchImpl);
+    await expect(auth.withAuth(async (token) => jsonResponse({ token }))).rejects.toThrow();
+    // Two password logins: the bootstrap and the one fallback inside `refresh`.
+    // A third would be the library recovery this deliberately disables.
+    expect(logins).toBe(2);
+  });
+});
