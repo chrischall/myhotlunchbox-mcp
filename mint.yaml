@@ -63,9 +63,14 @@ env:
       Absolute path for the token cache file. Defaults to
       $MCP_DATA_DIR/.myhotlunchbox-mcp/token.json.
 state:
-  # Sessions live in memory for the life of the child and are re-established by
-  # signing in again, so a cold start costs one login and loses nothing.
-  dataDir: false
+  dataDir: true
+  reason: >-
+    Caches the OAuth token pair at $MCP_DATA_DIR/.myhotlunchbox-mcp/token.json
+    (0600). This was dataDir:false while sessions lived only in memory, on the
+    reasoning that a cold start cost one login and lost nothing — true then, and
+    no longer: the cache is what turns those starts into nothing, and without a
+    persistent dir it is written to a rootfs the next idle-stop discards, so it
+    would never be read back.
 
 identity:
   # Credentials are per-registration secrets, not per-caller, so one shared
