@@ -33,7 +33,10 @@ env:
     help: >-
       Password for that account. Used for a server-side OAuth2 password grant;
       the refresh token it returns renews the session, so no browser or
-      extension is involved and nothing is written to disk.
+      extension is involved. The password itself is never written to disk — the
+      token pair it mints is cached at
+      $MCP_DATA_DIR/.myhotlunchbox-mcp/token.json (0600), bound to a salted
+      digest of these credentials so rotating either discards it.
 
   - name: MYHOTLUNCHBOX_BASE_URL
     secret: false
@@ -53,11 +56,13 @@ env:
       inline: true and taking the bytes back in the result.
 
   - name: MYHOTLUNCHBOX_TOKEN_CACHE
+    secret: false
     required: false
     help: >-
       Set to false to disable the on-disk token cache and log in on every
       process start. Defaults to enabled.
   - name: MYHOTLUNCHBOX_TOKEN_FILE
+    secret: false
     required: false
     help: >-
       Absolute path for the token cache file. Defaults to
