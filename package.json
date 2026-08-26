@@ -38,9 +38,9 @@
     "bundle": "esbuild src/index.ts --bundle --platform=node --format=esm --external:dotenv --outfile=dist/bundle.js",
     "dev": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "npm run typecheck && vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "npm run typecheck && vitest run --coverage",
     "verify:reads": "node scripts/verify-reads.mjs",
     "capture:writes": "node scripts/capture-writes.mjs"
   },
