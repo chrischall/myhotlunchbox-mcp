@@ -1,6 +1,7 @@
 import { McpToolError, truncateErrorMessage } from '@chrischall/mcp-utils';
 import { TokenManager } from '@chrischall/mcp-utils/session';
 import { API_PREFIX, OAUTH_SCOPE, type MhlbConfig } from './config.js';
+import { createTokenCache, reportCacheWriteFailure } from './token-cache.js';
 
 /** Shape of a successful OpenIddict token response. */
 interface TokenResponse {
@@ -162,13 +163,24 @@ export class MhlbAuth {
     if (this.loginInFlight) return this.loginInFlight;
 
     this.loginInFlight = (async () => {
-      const body = await this.passwordLogin();
       const manager = new TokenManager({
-        initial: {
-          accessToken: this.assertAccessToken(body),
-          refreshToken: body.refresh_token,
-          expiresAt: MhlbAuth.expiryOf(body),
+        // The FUNCTION form, so the cache is consulted before the password
+        // grant runs at all — the eager object form skips persistence, which
+        // would mean a cache that is written and never read.
+        initial: async () => {
+          const body = await this.passwordLogin();
+          return {
+            accessToken: this.assertAccessToken(body),
+            refreshToken: body.refresh_token,
+            expiresAt: MhlbAuth.expiryOf(body),
+          };
         },
+        persistence: createTokenCache() ?? undefined,
+        onPersistError: reportCacheWriteFailure,
+        // `refresh` below already recovers from a revoked refresh token by
+        // falling back to a full login, so the library's own re-mint-on-revoked
+        // recovery would only add a third attempt after both have failed.
+        isRefreshRevoked: () => false,
         refresh: async (refreshToken: string) => {
           let next: TokenResponse;
           try {
