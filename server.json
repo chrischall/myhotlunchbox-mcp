@@ -43,6 +43,18 @@
           "isRequired": false,
           "format": "string",
           "isSecret": false
+        },
+        {
+          "name": "MYHOTLUNCHBOX_TOKEN_CACHE",
+          "description": "Set to false to disable the on-disk token cache and re-authenticate on every process start. Defaults to enabled.",
+          "isRequired": false,
+          "format": "string"
+        },
+        {
+          "name": "MYHOTLUNCHBOX_TOKEN_FILE",
+          "description": "Absolute path for the token cache file. Defaults to $MCP_DATA_DIR/.myhotlunchbox-mcp/token.json.",
+          "isRequired": false,
+          "format": "string"
         }
       ]
     }
