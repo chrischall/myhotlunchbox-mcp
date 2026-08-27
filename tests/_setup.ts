@@ -34,6 +34,11 @@ afterAll(() => {
 
   const leaked = join(homedir(), '.myhotlunchbox-mcp');
   if (existsSync(leaked)) {
+    // Remove it BEFORE throwing. Detecting the leak and leaving it behind
+    // pollutes the developer's home directory with the very file the guard
+    // exists to prevent — and the next run would then fail on the debris of
+    // the last one rather than on anything it did itself.
+    rmSync(leaked, { recursive: true, force: true });
     throw new Error(
       `A test wrote to ${leaked}. The suite must never touch the real home ` +
         'directory — inject MYHOTLUNCHBOX_TOKEN_CACHE=false (or a temp ' +
