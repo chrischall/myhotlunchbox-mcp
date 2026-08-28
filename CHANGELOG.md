@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.0](https://github.com/chrischall/myhotlunchbox-mcp/compare/v0.2.1...v0.3.0) (2026-08-28)
+
+
+### Features
+
+* cache the OAuth token pair so a restart skips the password grant ([#22](https://github.com/chrischall/myhotlunchbox-mcp/issues/22)) ([cb778e6](https://github.com/chrischall/myhotlunchbox-mcp/commit/cb778e6af1869facb95d27375637f1951b81a3f7))
+
+
+### Documentation
+
+* list the cache env vars in server.json and .env.example ([#27](https://github.com/chrischall/myhotlunchbox-mcp/issues/27)) ([412622f](https://github.com/chrischall/myhotlunchbox-mcp/commit/412622fefc5c2405269d6909757f1c93c5964f3a))
+* **mint:** correct a claim the token cache made false ([#26](https://github.com/chrischall/myhotlunchbox-mcp/issues/26)) ([526e71b](https://github.com/chrischall/myhotlunchbox-mcp/commit/526e71b1c2ce7ac9c8791bda550f30fb9b9085db))
+* **server.json:** declare isSecret on the token-cache env vars ([#29](https://github.com/chrischall/myhotlunchbox-mcp/issues/29)) ([c6099ef](https://github.com/chrischall/myhotlunchbox-mcp/commit/c6099ef7c0820d0ab58fbd6b88b1bc797bbdda80))
+
 ## [0.2.1](https://github.com/chrischall/myhotlunchbox-mcp/compare/v0.2.0...v0.2.1) (2026-08-25)
 
 
