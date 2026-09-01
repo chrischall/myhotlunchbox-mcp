@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.4.0](https://github.com/chrischall/myhotlunchbox-mcp/compare/v0.3.0...v0.4.0) (2026-09-01)
+
+
+### Features
+
+* **health:** add mhlb_healthcheck ([#37](https://github.com/chrischall/myhotlunchbox-mcp/issues/37)) ([e7f32b8](https://github.com/chrischall/myhotlunchbox-mcp/commit/e7f32b839a394b1051c066a5408fed8cb5a79a8a))
+
+
+### Documentation
+
+* **health:** list mhlb_healthcheck in the README, and use the shared harness ([#40](https://github.com/chrischall/myhotlunchbox-mcp/issues/40)) ([683c82c](https://github.com/chrischall/myhotlunchbox-mcp/commit/683c82c10355715068979af756a32cb6822a6ccb))
+
 ## [0.3.0](https://github.com/chrischall/myhotlunchbox-mcp/compare/v0.2.1...v0.3.0) (2026-08-28)
 
 
