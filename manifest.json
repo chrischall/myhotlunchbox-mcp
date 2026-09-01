@@ -133,6 +133,10 @@
       "description": "Get the line-item detail of one transaction — which lunches it paid for."
     },
     {
+      "name": "mhlb_healthcheck",
+      "description": "Resolves the credential the way real tools do, then makes one authenticated request to ordernow.myhotlunchbox.com."
+    },
+    {
       "name": "mhlb_init_checkout",
       "description": "Start checkout for the cart: returns the order summary, totals, taxes, applied credits and the available payment methods."
     },

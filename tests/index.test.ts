@@ -8,6 +8,7 @@ import { registerOrderTools } from '../src/tools/orders.js';
 import { registerBillingTools } from '../src/tools/billing.js';
 import { registerCheckoutTools } from '../src/tools/checkout.js';
 import { registerReportTools } from '../src/tools/reports.js';
+import { registerHealthcheckTools } from '../src/tools/health.js';
 import { testConfig } from './helpers.js';
 
 export const EXPECTED_TOOLS = [
@@ -29,6 +30,7 @@ export const EXPECTED_TOOLS = [
   'mhlb_get_student_form',
   'mhlb_get_subscription_settings',
   'mhlb_get_transaction',
+  'mhlb_healthcheck',
   'mhlb_init_checkout',
   'mhlb_list_gift_cards',
   'mhlb_list_students',
@@ -60,6 +62,7 @@ export async function allTools(): Promise<string[]> {
       registerBillingTools,
       registerCheckoutTools,
       registerReportTools,
+      registerHealthcheckTools,
     ]) {
       register(server, client);
     }
