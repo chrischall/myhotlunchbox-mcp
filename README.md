@@ -38,9 +38,11 @@ still works; the configuration error surfaces on the first tool call.
 
 ## Tools
 
-34 tools, all prefixed `mhlb_`. All 20 read tools are verified live against a real parent account (`node scripts/verify-reads.mjs`); the 14 write tools are not — see below.
+35 tools, all prefixed `mhlb_`. All 20 read tools are verified live against a real parent account (`node scripts/verify-reads.mjs`); the 14 write tools are not — see below.
 
 **Account** — `mhlb_whoami`, `mhlb_session_reset`
+
+**Health** — `mhlb_healthcheck` (is this connector working? reports whether the credential resolved, whether My Hot Lunchbox accepted it, and what to fix — unlike `mhlb_whoami`, which throws instead of answering)
 
 **Students** — `mhlb_list_students`, `mhlb_get_student_form`,
 `mhlb_new_student_form`, `mhlb_create_student`, `mhlb_update_student`,

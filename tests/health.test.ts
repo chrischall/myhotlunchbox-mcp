@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { createTestHarness, parseToolResult } from '@chrischall/mcp-utils/test';
 import type { MhlbClient } from '../src/client.js';
 import { registerHealthcheckTools } from '../src/tools/health.js';
 import type { MhlbConfig } from '../src/config.js';
@@ -13,18 +13,17 @@ const CONFIG: MhlbConfig = {
 function setup(config: Partial<MhlbConfig> = {}, probe?: () => Promise<unknown>) {
   const get = vi.fn(probe ?? (async () => ({ email: 'parent@example.com' })));
   const client = { get } as unknown as MhlbClient;
-  const server = new McpServer({ name: 'test', version: '0.0.0' });
-  registerHealthcheckTools(server, client, () => ({ ...CONFIG, ...config }));
-  const call = async () =>
-    JSON.parse((await (server as any)._registeredTools.mhlb_healthcheck.handler({}, {})).content[0].text);
-  return { server, call, get };
+  const harness = createTestHarness((s) => registerHealthcheckTools(s, client, () => ({ ...CONFIG, ...config })));
+  const call = async () => parseToolResult<any>(await (await harness).callTool('mhlb_healthcheck'));
+  const names = async () => (await (await harness).listTools()).map((t) => t.name);
+  return { call, get, names };
 }
 
 afterEach(() => vi.clearAllMocks());
 
 describe('mhlb_healthcheck', () => {
-  it('registers under the repo tool prefix', () => {
-    expect(Object.keys((setup().server as any)._registeredTools)).toEqual(['mhlb_healthcheck']);
+  it('registers under the repo tool prefix', async () => {
+    expect(await setup().names()).toEqual(['mhlb_healthcheck']);
   });
 
   it('reports ok when the credential resolves and the probe succeeds', async () => {
@@ -92,11 +91,10 @@ describe('mhlb_healthcheck', () => {
   it('reads the real environment when no config loader is injected', async () => {
     vi.stubEnv('MYHOTLUNCHBOX_USERNAME', 'real@example.com');
     vi.stubEnv('MYHOTLUNCHBOX_PASSWORD', 'REAL-PW');
-    const server = new McpServer({ name: 'test', version: '0.0.0' });
-    registerHealthcheckTools(server, { get: vi.fn(async () => ({})) } as any);
-    const out = JSON.parse(
-      (await (server as any)._registeredTools.mhlb_healthcheck.handler({}, {})).content[0].text,
+    const h = await createTestHarness((s) =>
+      registerHealthcheckTools(s, { get: vi.fn(async () => ({})) } as any),
     );
+    const out = parseToolResult<any>(await h.callTool('mhlb_healthcheck'));
     expect(out.credential.resolved).toBe(true);
     expect(JSON.stringify(out)).not.toContain('REAL-PW');
     vi.unstubAllEnvs();
