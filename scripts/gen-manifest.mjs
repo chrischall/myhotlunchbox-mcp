@@ -7,7 +7,7 @@ process.stdout.on('error', (e) => { if (e.code === 'EPIPE') process.exit(0); thr
 
 const { MhlbClient } = await import('../dist/client.js');
 const registrars = await Promise.all(
-  ['account', 'students', 'calendar', 'orders', 'billing', 'checkout', 'reports'].map((m) =>
+  ['account', 'students', 'calendar', 'orders', 'billing', 'checkout', 'reports', 'health'].map((m) =>
     import(`../dist/tools/${m}.js`),
   ),
 );

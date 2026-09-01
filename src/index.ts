@@ -9,6 +9,7 @@ import { registerOrderTools } from './tools/orders.js';
 import { registerBillingTools } from './tools/billing.js';
 import { registerCheckoutTools } from './tools/checkout.js';
 import { registerReportTools } from './tools/reports.js';
+import { registerHealthcheckTools } from './tools/health.js';
 
 await loadDotenvSafely();
 
@@ -30,5 +31,6 @@ await runMcp({
     registerBillingTools,
     registerCheckoutTools,
     registerReportTools,
+    registerHealthcheckTools,
   ],
 });
