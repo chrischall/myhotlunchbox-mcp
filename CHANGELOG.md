@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.5.0](https://github.com/chrischall/myhotlunchbox-mcp/compare/v0.4.0...v0.5.0) (2026-09-04)
+
+
+### Features
+
+* **tools:** actually minify every response ([#50](https://github.com/chrischall/myhotlunchbox-mcp/issues/50)) ([749002d](https://github.com/chrischall/myhotlunchbox-mcp/commit/749002df1160278580c64145be71d727ba0f47b1))
+* **tools:** compact by default — strip media URLs, and minify every response ([#44](https://github.com/chrischall/myhotlunchbox-mcp/issues/44)) ([c922620](https://github.com/chrischall/myhotlunchbox-mcp/commit/c92262007fe1398185d2fb0c5459662ab0e4f8a2))
+
+
+### Bug Fixes
+
+* **build:** restore the literal em dash in the package description ([#48](https://github.com/chrischall/myhotlunchbox-mcp/issues/48)) ([76fd48f](https://github.com/chrischall/myhotlunchbox-mcp/commit/76fd48f7852243e346f004df81a3d03b1088735f))
+
+
+### Refactor
+
+* **tools:** drop the unwired view.ts scaffold ([#49](https://github.com/chrischall/myhotlunchbox-mcp/issues/49)) ([5321fe7](https://github.com/chrischall/myhotlunchbox-mcp/commit/5321fe71f82386c75ae217b50af1593c70ec4cca))
+
 ## [0.4.0](https://github.com/chrischall/myhotlunchbox-mcp/compare/v0.3.0...v0.4.0) (2026-09-01)
 
 
