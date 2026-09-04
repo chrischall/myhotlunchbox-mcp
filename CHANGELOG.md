@@ -6,7 +6,7 @@
 ### Features
 
 * **tools:** actually minify every response ([#50](https://github.com/chrischall/myhotlunchbox-mcp/issues/50)) ([749002d](https://github.com/chrischall/myhotlunchbox-mcp/commit/749002df1160278580c64145be71d727ba0f47b1))
-* **tools:** compact by default — strip media URLs, and minify every response ([#44](https://github.com/chrischall/myhotlunchbox-mcp/issues/44)) ([c922620](https://github.com/chrischall/myhotlunchbox-mcp/commit/c92262007fe1398185d2fb0c5459662ab0e4f8a2))
+* **tools:** minify every response — no formatting whitespace on any payload ([#44](https://github.com/chrischall/myhotlunchbox-mcp/issues/44)) ([c922620](https://github.com/chrischall/myhotlunchbox-mcp/commit/c92262007fe1398185d2fb0c5459662ab0e4f8a2))
 
 
 ### Bug Fixes
