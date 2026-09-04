@@ -1,4 +1,4 @@
-import { jsonResult, textResult } from '@chrischall/mcp-utils';
+import { jsonResult, minifiedResult } from '@chrischall/mcp-utils';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 /**
@@ -23,7 +23,7 @@ export function preview(
   });
 }
 
-export { jsonResult, textResult };
+export { jsonResult, minifiedResult };
 
 /**
  * Marker appended to the description of every tool whose request shape was
