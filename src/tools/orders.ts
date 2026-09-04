@@ -2,7 +2,7 @@ import { toolAnnotations, PositiveInt, IsoDate, schemaConfirm } from '@chrischal
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { MhlbClient } from '../client.js';
-import { jsonResult, preview, UNVERIFIED } from './_shared.js';
+import { UNVERIFIED, minifiedResult, preview } from './_shared.js';
 
 /**
  * Ordering is read-modify-write throughout: `GET /event/createOrder` and
@@ -73,7 +73,7 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
       },
     },
     async ({ orderStatus, period, studentId }) =>
-      jsonResult(
+      minifiedResult(
         await client.get('/event/shoppingCart', {
           orderStatus,
           selectedPeriod: period,
@@ -96,7 +96,7 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
       },
     },
     async ({ tabName, period, studentId }) =>
-      jsonResult(
+      minifiedResult(
         await client.get('/event/ShoppingCartBaseData', {
           shopingCartTabsName: tabName,
           selectedPeriod: period,
@@ -118,7 +118,7 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
       },
     },
     async ({ studentId, date }) =>
-      jsonResult(await client.get('/event/orderBaseData', { studentId, eventDate: date })),
+      minifiedResult(await client.get('/event/orderBaseData', { studentId, eventDate: date })),
   );
 
   server.registerTool(
@@ -134,7 +134,7 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
       },
     },
     async ({ eventId, studentId }) =>
-      jsonResult(await client.get('/event/createOrder', { eventId, studentId })),
+      minifiedResult(await client.get('/event/createOrder', { eventId, studentId })),
   );
 
   server.registerTool(
@@ -150,7 +150,7 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
       },
     },
     async ({ orderId, eventId, studentId }) =>
-      jsonResult(await client.get('/event/editOrder', { orderId, eventId, studentId })),
+      minifiedResult(await client.get('/event/editOrder', { orderId, eventId, studentId })),
   );
 
   server.registerTool(
@@ -168,7 +168,7 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
           'This adds the lunch to the cart. Payment is a separate step (mhlb_checkout).',
         ]);
       }
-      return jsonResult(await client.write('/event/createOrder', order));
+      return minifiedResult(await client.write('/event/createOrder', order));
     },
   );
 
@@ -187,7 +187,7 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
           'This is a whole-order replace: items missing from `order` are removed, not preserved.',
         ]);
       }
-      return jsonResult(await client.write('/event/editOrder', order));
+      return minifiedResult(await client.write('/event/editOrder', order));
     },
   );
 
@@ -208,7 +208,7 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
           'isRepeated: true removes the whole recurring series, not just this date.',
         ]);
       }
-      return jsonResult(await client.write('/event/deleteOrder', body));
+      return minifiedResult(await client.write('/event/deleteOrder', body));
     },
   );
 }

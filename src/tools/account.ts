@@ -1,7 +1,7 @@
 import { toolAnnotations } from '@chrischall/mcp-utils';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { MhlbClient } from '../client.js';
-import { jsonResult } from './_shared.js';
+import { minifiedResult } from './_shared.js';
 
 /** Claims the app stores as `userInfo` (OpenID Connect + app-specific extras). */
 export interface UserInfo {
@@ -32,7 +32,7 @@ export function registerAccountTools(server: McpServer, client: MhlbClient): voi
       annotations: toolAnnotations({ title: 'Who am I', openWorld: true }),
       inputSchema: {},
     },
-    async () => jsonResult(await client.get<UserInfo>('/auth/userinfo')),
+    async () => minifiedResult(await client.get<UserInfo>('/auth/userinfo')),
   );
 
   server.registerTool(
@@ -47,7 +47,7 @@ export function registerAccountTools(server: McpServer, client: MhlbClient): voi
     async () => {
       const wasAuthenticated = client.isAuthenticated;
       client.resetSession();
-      return jsonResult({ reset: true, hadActiveSession: wasAuthenticated });
+      return minifiedResult({ reset: true, hadActiveSession: wasAuthenticated });
     },
   );
 }

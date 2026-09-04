@@ -2,7 +2,7 @@ import { toolAnnotations, PositiveInt, NonEmptyString, schemaConfirm } from '@ch
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { MhlbClient } from '../client.js';
-import { jsonResult, preview, UNVERIFIED } from './_shared.js';
+import { UNVERIFIED, minifiedResult, preview } from './_shared.js';
 import { OrderRefShape, orderRefBody } from './orders.js';
 
 export function registerBillingTools(server: McpServer, client: MhlbClient): void {
@@ -17,7 +17,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
       },
     },
     async ({ period, studentId }) =>
-      jsonResult(await client.get('/event/transactionsList', { selectedPeriod: period, selectedStudentId: studentId })),
+      minifiedResult(await client.get('/event/transactionsList', { selectedPeriod: period, selectedStudentId: studentId })),
   );
 
   server.registerTool(
@@ -28,7 +28,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
       inputSchema: { transactionId: PositiveInt.describe('Transaction id (the `id` field from mhlb_list_transactions).') },
     },
     // The query parameter is `id`, not `transactionId` — verified live.
-    async ({ transactionId }) => jsonResult(await client.get('/event/transactionDetails', { id: transactionId })),
+    async ({ transactionId }) => minifiedResult(await client.get('/event/transactionDetails', { id: transactionId })),
   );
 
   server.registerTool(
@@ -39,7 +39,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
       annotations: toolAnnotations({ title: 'List subscriptions', openWorld: true }),
       inputSchema: { period: z.string().optional().describe('Ordering period to scope to.') },
     },
-    async ({ period }) => jsonResult(await client.get('/event/upcomingSubscriptions', { period })),
+    async ({ period }) => minifiedResult(await client.get('/event/upcomingSubscriptions', { period })),
   );
 
   server.registerTool(
@@ -49,7 +49,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
       annotations: toolAnnotations({ title: 'Get subscription settings', openWorld: true }),
       inputSchema: {},
     },
-    async () => jsonResult(await client.get('/event/subscription')),
+    async () => minifiedResult(await client.get('/event/subscription')),
   );
 
   server.registerTool(
@@ -72,7 +72,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
           enabled ? ['Enabling means future lunches are ordered and charged automatically.'] : [],
         );
       }
-      return jsonResult(
+      return minifiedResult(
         await client.write('/parent/changeSubscriptionStatus', undefined, { isEnableSubscription: enabled }),
       );
     },
@@ -95,7 +95,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
           'isRepeated: true stops the whole recurring series, not just this date.',
         ]);
       }
-      return jsonResult(await client.write('/event/unsubcribeOrder', body));
+      return minifiedResult(await client.write('/event/unsubcribeOrder', body));
     },
   );
 
@@ -106,7 +106,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
       annotations: toolAnnotations({ title: 'List gift cards', openWorld: true }),
       inputSchema: {},
     },
-    async () => jsonResult(await client.get('/parent/giftCardDataTables')),
+    async () => minifiedResult(await client.get('/parent/giftCardDataTables')),
   );
 
   server.registerTool(
@@ -120,7 +120,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
       if (!confirm) {
         return preview('Apply gift card', { method: 'POST', path: '/parent/applyGiftCard', query: { giftCardCode: code } });
       }
-      return jsonResult(await client.write('/parent/applyGiftCard', undefined, { giftCardCode: code }));
+      return minifiedResult(await client.write('/parent/applyGiftCard', undefined, { giftCardCode: code }));
     },
   );
 
@@ -131,7 +131,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
       annotations: toolAnnotations({ title: 'Get applied coupon', openWorld: true }),
       inputSchema: {},
     },
-    async () => jsonResult(await client.get('/parent/coupon')),
+    async () => minifiedResult(await client.get('/parent/coupon')),
   );
 
   server.registerTool(
@@ -145,7 +145,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
       if (!confirm) {
         return preview('Apply coupon', { method: 'POST', path: '/parent/applyCoupon', query: { couponCode: code } });
       }
-      return jsonResult(await client.write('/parent/applyCoupon', undefined, { couponCode: code }));
+      return minifiedResult(await client.write('/parent/applyCoupon', undefined, { couponCode: code }));
     },
   );
 
@@ -158,7 +158,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
     },
     async ({ confirm }) => {
       if (!confirm) return preview('Remove coupon', { method: 'POST', path: '/parent/removeCoupon' });
-      return jsonResult(await client.write('/parent/removeCoupon'));
+      return minifiedResult(await client.write('/parent/removeCoupon'));
     },
   );
 }

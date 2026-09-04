@@ -4,7 +4,7 @@ import { McpToolError, readEnvVar, toolAnnotations, PositiveInt, IsoDate } from 
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { MhlbClient } from '../client.js';
-import { jsonResult } from './_shared.js';
+import { minifiedResult } from './_shared.js';
 
 /**
  * The `/parentReports/print*` endpoints are declared `responseType: 'blob'` in
@@ -82,7 +82,7 @@ function deliver(
   contentType: string,
   filename: string,
   inline: boolean,
-): ReturnType<typeof jsonResult> {
+): ReturnType<typeof minifiedResult> {
   if (inline) {
     if (bytes.byteLength > MAX_INLINE_BYTES) {
       throw new McpToolError(
@@ -90,7 +90,7 @@ function deliver(
         { hint: 'Call again with inline: false to write it to a file instead.' },
       );
     }
-    return jsonResult({
+    return minifiedResult({
       filename,
       contentType,
       bytes: bytes.byteLength,
@@ -112,7 +112,7 @@ function deliver(
       cause,
     });
   }
-  return jsonResult({ path, contentType, bytes: bytes.byteLength });
+  return minifiedResult({ path, contentType, bytes: bytes.byteLength });
 }
 
 /** The midpoint date the calendar report uses to title the PDF. */
