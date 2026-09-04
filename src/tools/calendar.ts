@@ -1,7 +1,7 @@
 import { toolAnnotations, PositiveInt, IsoDate } from '@chrischall/mcp-utils';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { MhlbClient } from '../client.js';
-import { jsonResult } from './_shared.js';
+import { minifiedResult } from './_shared.js';
 
 export function registerCalendarTools(server: McpServer, client: MhlbClient): void {
   server.registerTool(
@@ -20,7 +20,7 @@ export function registerCalendarTools(server: McpServer, client: MhlbClient): vo
     // `startDate`/`endDate` returns 200 with an empty `events` array — a silent
     // wrong answer, not an error.
     async ({ startDate, endDate }) =>
-      jsonResult(await client.write('/calendar/studentSchoolData', { start: startDate, end: endDate })),
+      minifiedResult(await client.write('/calendar/studentSchoolData', { start: startDate, end: endDate })),
   );
 
   server.registerTool(
@@ -35,7 +35,7 @@ export function registerCalendarTools(server: McpServer, client: MhlbClient): vo
       },
     },
     async ({ studentId, date }) =>
-      jsonResult(await client.get('/calendar/studentOrderItems', { studentId, date })),
+      minifiedResult(await client.get('/calendar/studentOrderItems', { studentId, date })),
   );
 
 }

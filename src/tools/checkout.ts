@@ -3,7 +3,7 @@ import { McpToolError, toolAnnotations, PositiveInt, schemaConfirm } from '@chri
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { MhlbClient } from '../client.js';
-import { jsonResult, preview, UNVERIFIED } from './_shared.js';
+import { UNVERIFIED, minifiedResult, preview } from './_shared.js';
 
 /**
  * Checkout is the only pair of tools that moves money. Both are confirm-gated
@@ -37,7 +37,7 @@ export function registerCheckoutTools(server: McpServer, client: MhlbClient): vo
           'This step prices the cart and returns payment options. It does not charge a card.',
         ]);
       }
-      return jsonResult(await client.write('/payment/initCheckout', body));
+      return minifiedResult(await client.write('/payment/initCheckout', body));
     },
   );
 
@@ -106,7 +106,7 @@ export function registerCheckoutTools(server: McpServer, client: MhlbClient): vo
       // would mangle a non-object and would let `expectedTotal`/`idempotencyKey`
       // silently shadow same-named server fields.
       const result = await client.write<unknown>('/payment/checkout', body);
-      return jsonResult({ result, expectedTotal, idempotencyKey: key });
+      return minifiedResult({ result, expectedTotal, idempotencyKey: key });
     },
   );
 }

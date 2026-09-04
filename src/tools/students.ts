@@ -2,7 +2,7 @@ import { toolAnnotations, PositiveInt, schemaConfirm } from '@chrischall/mcp-uti
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { MhlbClient } from '../client.js';
-import { jsonResult, preview, UNVERIFIED } from './_shared.js';
+import { UNVERIFIED, minifiedResult, preview } from './_shared.js';
 
 /** One row of `/parent/childrenInfo`. */
 export interface ChildInfo {
@@ -36,7 +36,7 @@ export function registerStudentTools(server: McpServer, client: MhlbClient): voi
       annotations: toolAnnotations({ title: 'List students', openWorld: true }),
       inputSchema: {},
     },
-    async () => jsonResult(await client.get<ChildInfo[]>('/parent/childrenInfo')),
+    async () => minifiedResult(await client.get<ChildInfo[]>('/parent/childrenInfo')),
   );
 
   server.registerTool(
@@ -48,7 +48,7 @@ export function registerStudentTools(server: McpServer, client: MhlbClient): voi
       annotations: toolAnnotations({ title: 'Get student form', openWorld: true }),
       inputSchema: { studentId: PositiveInt.describe('Student id from mhlb_list_students.') },
     },
-    async ({ studentId }) => jsonResult(await client.get('/parent/editChild', { childId: studentId })),
+    async ({ studentId }) => minifiedResult(await client.get('/parent/editChild', { childId: studentId })),
   );
 
   server.registerTool(
@@ -60,7 +60,7 @@ export function registerStudentTools(server: McpServer, client: MhlbClient): voi
       annotations: toolAnnotations({ title: 'New student form', openWorld: true }),
       inputSchema: {},
     },
-    async () => jsonResult(await client.get('/parent/createChild')),
+    async () => minifiedResult(await client.get('/parent/createChild')),
   );
 
   server.registerTool(
@@ -74,7 +74,7 @@ export function registerStudentTools(server: McpServer, client: MhlbClient): voi
     },
     async ({ student, confirm }) => {
       if (!confirm) return preview('Create student', { method: 'POST', path: '/parent/createChild', body: student });
-      return jsonResult(await client.write('/parent/createChild', student));
+      return minifiedResult(await client.write('/parent/createChild', student));
     },
   );
 
@@ -93,7 +93,7 @@ export function registerStudentTools(server: McpServer, client: MhlbClient): voi
           'This is a whole-record replace: any field missing from `student` is cleared, not preserved.',
         ]);
       }
-      return jsonResult(await client.write('/parent/editChild', student));
+      return minifiedResult(await client.write('/parent/editChild', student));
     },
   );
 
@@ -117,7 +117,7 @@ export function registerStudentTools(server: McpServer, client: MhlbClient): voi
           ['Deleting a student is not reversible through this API.'],
         );
       }
-      return jsonResult(await client.write('/parent/deleteChild', undefined, { id: studentId }));
+      return minifiedResult(await client.write('/parent/deleteChild', undefined, { id: studentId }));
     },
   );
 }

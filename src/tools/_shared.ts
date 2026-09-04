@@ -1,4 +1,4 @@
-import { jsonResult, minifiedResult } from '@chrischall/mcp-utils';
+import { minifiedResult } from '@chrischall/mcp-utils';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 
 /**
@@ -12,7 +12,7 @@ export function preview(
   request: { method: 'POST'; path: string; query?: Record<string, unknown>; body?: unknown },
   notes?: string[],
 ): CallToolResult {
-  return jsonResult({
+  return minifiedResult({
     dryRun: true,
     action,
     wouldSend: request,
@@ -23,7 +23,12 @@ export function preview(
   });
 }
 
-export { jsonResult, minifiedResult };
+// `minifiedResult` only. This seam re-exported both for a while, and every
+// tool went on importing `jsonResult` — @chrischall/mcp-utils' alias for the
+// PRETTY `textResult` — so the re-export was the only trace of a minification
+// that never happened. Exporting one name makes the wrong choice unavailable
+// rather than merely discouraged.
+export { minifiedResult };
 
 /**
  * Marker appended to the description of every tool whose request shape was
