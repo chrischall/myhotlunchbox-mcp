@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.1](https://github.com/chrischall/myhotlunchbox-mcp/compare/v0.5.0...v0.5.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* **deps:** @chrischall/mcp-utils 0.26.1 ([#60](https://github.com/chrischall/myhotlunchbox-mcp/issues/60)) ([b478e2f](https://github.com/chrischall/myhotlunchbox-mcp/commit/b478e2f95d61d11fca9cbad30ec6c982c88afc0c))
+* **deps:** bump hono from 4.13.4 to 4.13.7 ([#58](https://github.com/chrischall/myhotlunchbox-mcp/issues/58)) ([fec6455](https://github.com/chrischall/myhotlunchbox-mcp/commit/fec6455990a79d565738094f3df6048a6e4b2c5a))
+* **deps:** declare the peer floors mcp-utils 0.26.1 requires ([#61](https://github.com/chrischall/myhotlunchbox-mcp/issues/61)) ([973cf62](https://github.com/chrischall/myhotlunchbox-mcp/commit/973cf62b97095b74acf0a7b31437dd071c239c0c))
+
 ## [0.5.0](https://github.com/chrischall/myhotlunchbox-mcp/compare/v0.4.0...v0.5.0) (2026-09-04)
 
 
