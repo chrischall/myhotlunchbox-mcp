@@ -40,6 +40,11 @@ still works; the configuration error surfaces on the first tool call.
 
 35 tools, all prefixed `mhlb_`. All 20 read tools are verified live against a real parent account (`node scripts/verify-reads.mjs`); the 14 write tools are not — see below.
 
+The read claim carries a date because it can go stale with no tool file
+touched: an SDK or `zod` major re-plumbs every read path underneath it. Last
+re-run 2026-09-19 on 1.0.0 — the tree after the MCP SDK v2 migration and the
+forced `zod` 4.6.2 bump — 20/20 green.
+
 **Account** — `mhlb_whoami`, `mhlb_session_reset`
 
 **Health** — `mhlb_healthcheck` (is this connector working? reports whether the credential resolved, whether My Hot Lunchbox accepted it, and what to fix — unlike `mhlb_whoami`, which throws instead of answering)
