@@ -1,6 +1,6 @@
 import { toolAnnotations, PositiveInt, schemaConfirm } from '@chrischall/mcp-utils';
 import { z } from 'zod';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { McpServer } from '@modelcontextprotocol/server';
 import type { MhlbClient } from '../client.js';
 import { UNVERIFIED, minifiedResult, preview } from './_shared.js';
 
@@ -34,7 +34,7 @@ export function registerStudentTools(server: McpServer, client: MhlbClient): voi
         'and whether the profile is inactive or still an unaccepted invite. The student id feeds every ' +
         'calendar and ordering tool.',
       annotations: toolAnnotations({ title: 'List students', openWorld: true }),
-      inputSchema: {},
+      inputSchema: z.object({}),
     },
     async () => minifiedResult(await client.get<ChildInfo[]>('/parent/childrenInfo')),
   );
@@ -46,7 +46,7 @@ export function registerStudentTools(server: McpServer, client: MhlbClient): voi
         'Get the editable profile for one student — school, grade, teacher, delivery location, allergies and ' +
         'the dropdown options for each. Returns the exact model that mhlb_update_student expects back.',
       annotations: toolAnnotations({ title: 'Get student form', openWorld: true }),
-      inputSchema: { studentId: PositiveInt.describe('Student id from mhlb_list_students.') },
+      inputSchema: z.object({ studentId: PositiveInt.describe('Student id from mhlb_list_students.') }),
     },
     async ({ studentId }) => minifiedResult(await client.get('/parent/editChild', { childId: studentId })),
   );
@@ -58,7 +58,7 @@ export function registerStudentTools(server: McpServer, client: MhlbClient): voi
         'Get a blank student profile plus the school/grade/teacher dropdown options, ready to fill in and ' +
         'pass to mhlb_create_student.',
       annotations: toolAnnotations({ title: 'New student form', openWorld: true }),
-      inputSchema: {},
+      inputSchema: z.object({}),
     },
     async () => minifiedResult(await client.get('/parent/createChild')),
   );
@@ -70,7 +70,7 @@ export function registerStudentTools(server: McpServer, client: MhlbClient): voi
         'Add a student to the account. Call mhlb_new_student_form first and send that model back with the ' +
         'fields filled in.' + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Create student', readOnly: false, openWorld: true }),
-      inputSchema: { student: StudentModel, confirm: schemaConfirm },
+      inputSchema: z.object({ student: StudentModel, confirm: schemaConfirm }),
     },
     async ({ student, confirm }) => {
       if (!confirm) return preview('Create student', { method: 'POST', path: '/parent/createChild', body: student });
@@ -85,7 +85,7 @@ export function registerStudentTools(server: McpServer, client: MhlbClient): voi
         'Update a student profile. Call mhlb_get_student_form first and send that model back with your edits — ' +
         'the endpoint replaces the whole record, so omitted fields are lost.' + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Update student', readOnly: false, openWorld: true }),
-      inputSchema: { student: StudentModel, confirm: schemaConfirm },
+      inputSchema: z.object({ student: StudentModel, confirm: schemaConfirm }),
     },
     async ({ student, confirm }) => {
       if (!confirm) {
@@ -104,10 +104,10 @@ export function registerStudentTools(server: McpServer, client: MhlbClient): voi
         'Remove a student from the account. Irreversible from this API — their order history goes with them.' +
         UNVERIFIED,
       annotations: toolAnnotations({ title: 'Delete student', readOnly: false, openWorld: true }),
-      inputSchema: {
+      inputSchema: z.object({
         studentId: PositiveInt.describe('Student id from mhlb_list_students.'),
         confirm: schemaConfirm,
-      },
+      }),
     },
     async ({ studentId, confirm }) => {
       if (!confirm) {
