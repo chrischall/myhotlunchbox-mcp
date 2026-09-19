@@ -1,6 +1,6 @@
 import { toolAnnotations, PositiveInt, IsoDate, schemaConfirm } from '@chrischall/mcp-utils';
 import { z } from 'zod';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { McpServer } from '@modelcontextprotocol/server';
 import type { MhlbClient } from '../client.js';
 import { UNVERIFIED, minifiedResult, preview } from './_shared.js';
 
@@ -66,11 +66,11 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
         'Get the shopping cart — lunches added but not yet paid for. Filter by order status and ordering period, ' +
         'or narrow to one student.',
       annotations: toolAnnotations({ title: 'Get cart', openWorld: true }),
-      inputSchema: {
+      inputSchema: z.object({
         orderStatus: z.string().optional().describe('Status tab to show, e.g. from mhlb_get_cart_tabs.'),
         period: z.string().optional().describe('Ordering period value from mhlb_get_cart_tabs.'),
         studentId: PositiveInt.optional().describe('Limit to one student.'),
-      },
+      }),
     },
     async ({ orderStatus, period, studentId }) =>
       minifiedResult(
@@ -89,11 +89,11 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
         'Get the valid filter values for mhlb_get_cart — the ordering periods (semesters) and status tabs, ' +
         'with which one is selected by default. Call this before filtering the cart.',
       annotations: toolAnnotations({ title: 'Get cart filters', openWorld: true }),
-      inputSchema: {
+      inputSchema: z.object({
         tabName: z.string().optional().describe('Status tab whose counts to compute.'),
         period: z.string().optional().describe('Ordering period to scope the tabs to.'),
         studentId: PositiveInt.optional().describe('Limit to one student.'),
-      },
+      }),
     },
     async ({ tabName, period, studentId }) =>
       minifiedResult(
@@ -112,10 +112,10 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
         'Get the orderable menu for one student on one date — the vendor, items, sizes, add-ons, prices and ' +
         'the ordering deadline. This is the read half of placing an order.',
       annotations: toolAnnotations({ title: 'Get menu for a day', openWorld: true }),
-      inputSchema: {
+      inputSchema: z.object({
         studentId: PositiveInt.describe('Student id from mhlb_list_students.'),
         date: IsoDate.describe('The lunch date (YYYY-MM-DD).'),
-      },
+      }),
     },
     async ({ studentId, date }) =>
       minifiedResult(await client.get('/event/orderBaseData', { studentId, eventDate: date })),
@@ -128,10 +128,10 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
         'Get the blank order model for a student on a specific lunch event — the exact structure that ' +
         'mhlb_create_order expects back, pre-populated with the available items.',
       annotations: toolAnnotations({ title: 'Get order form', openWorld: true }),
-      inputSchema: {
+      inputSchema: z.object({
         eventId: PositiveInt.describe('Lunch event id, from mhlb_get_menu or mhlb_get_calendar.'),
         studentId: PositiveInt.describe('Student id from mhlb_list_students.'),
-      },
+      }),
     },
     async ({ eventId, studentId }) =>
       minifiedResult(await client.get('/event/createOrder', { eventId, studentId })),
@@ -143,11 +143,11 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
       description:
         'Get an existing order in editable form — the model mhlb_update_order expects back.',
       annotations: toolAnnotations({ title: 'Get order', openWorld: true }),
-      inputSchema: {
+      inputSchema: z.object({
         orderId: PositiveInt.optional().describe('Order id, when you have one.'),
         eventId: PositiveInt.optional().describe('Lunch event id.'),
         studentId: PositiveInt.optional().describe('Student id.'),
-      },
+      }),
     },
     async ({ orderId, eventId, studentId }) =>
       minifiedResult(await client.get('/event/editOrder', { orderId, eventId, studentId })),
@@ -160,7 +160,7 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
         'Place a lunch order into the cart. Call mhlb_get_order_form first and send that model back with ' +
         'quantities set. This adds to the cart — it does not pay; use mhlb_checkout for that.' + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Create order', readOnly: false, openWorld: true }),
-      inputSchema: { order: OrderModel, confirm: schemaConfirm },
+      inputSchema: z.object({ order: OrderModel, confirm: schemaConfirm }),
     },
     async ({ order, confirm }) => {
       if (!confirm) {
@@ -179,7 +179,7 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
         'Change an existing lunch order. Call mhlb_get_order first and send that model back with your edits — ' +
         'the endpoint replaces the whole order.' + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Update order', readOnly: false, openWorld: true }),
-      inputSchema: { order: OrderModel, confirm: schemaConfirm },
+      inputSchema: z.object({ order: OrderModel, confirm: schemaConfirm }),
     },
     async ({ order, confirm }) => {
       if (!confirm) {
@@ -198,7 +198,7 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
         'Cancel a lunch order. If it was already paid for, the refund behaviour is whatever My Hot Lunchbox ' +
         'applies — this tool does not control it.' + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Delete order', readOnly: false, openWorld: true }),
-      inputSchema: { ...OrderRefShape, confirm: schemaConfirm },
+      inputSchema: z.object({ ...OrderRefShape, confirm: schemaConfirm }),
     },
     async ({ confirm, ...ref }) => {
       const body = orderRefBody(ref);

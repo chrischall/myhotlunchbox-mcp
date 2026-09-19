@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { McpToolError, toolAnnotations, PositiveInt, schemaConfirm } from '@chrischall/mcp-utils';
 import { z } from 'zod';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { McpServer } from '@modelcontextprotocol/server';
 import type { MhlbClient } from '../client.js';
 import { UNVERIFIED, minifiedResult, preview } from './_shared.js';
 
@@ -25,10 +25,10 @@ export function registerCheckoutTools(server: McpServer, client: MhlbClient): vo
         'available payment methods. This does NOT charge anything — it is the read step before mhlb_checkout.' +
         UNVERIFIED,
       annotations: toolAnnotations({ title: 'Initialise checkout', readOnly: false, openWorld: true }),
-      inputSchema: {
+      inputSchema: z.object({
         ...CheckoutShape,
         confirm: schemaConfirm,
-      },
+      }),
     },
     async ({ confirm, ...args }) => {
       const body = checkoutBody(args);
@@ -50,7 +50,7 @@ export function registerCheckoutTools(server: McpServer, client: MhlbClient): vo
         'Only a card ALREADY SAVED on the account can be used: paying with a new card needs a Stripe token ' +
         'minted by Stripe.js in a browser, which no server-side client can produce.' + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Pay for cart', readOnly: false, openWorld: true }),
-      inputSchema: {
+      inputSchema: z.object({
         ...CheckoutShape,
         availableCredits: z
           .number()
@@ -74,7 +74,7 @@ export function registerCheckoutTools(server: McpServer, client: MhlbClient): vo
             'dry run and in the result so an unexpected charge is at least attributable.',
           ),
         confirm: schemaConfirm,
-      },
+      }),
     },
     async ({ availableCredits, idempotencyKey, expectedTotal, confirm, ...args }) => {
       // The site generates this client-side as `${randomUUID()}-${Date.now()}`

@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join, resolve } from 'node:path';
 import { McpToolError, readEnvVar, toolAnnotations, PositiveInt, IsoDate } from '@chrischall/mcp-utils';
 import { z } from 'zod';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { McpServer } from '@modelcontextprotocol/server';
 import type { MhlbClient } from '../client.js';
 import { minifiedResult } from './_shared.js';
 
@@ -134,7 +134,7 @@ export function registerReportTools(server: McpServer, client: MhlbClient): void
         'Generate the printable lunch calendar PDF for a date range. Writes the PDF to disk and returns its ' +
         'path (or the bytes inline with inline: true).',
       annotations: toolAnnotations({ title: 'Print lunch calendar', readOnly: false, openWorld: true }),
-      inputSchema: {
+      inputSchema: z.object({
         startDate: IsoDate.describe('First day to include (YYYY-MM-DD).'),
         endDate: IsoDate.describe('Last day to include (YYYY-MM-DD).'),
         studentIds: z
@@ -146,7 +146,7 @@ export function registerReportTools(server: McpServer, client: MhlbClient): void
           ),
         filename: z.string().optional().describe('Output filename. Defaults to "Lunch Calendar.pdf".'),
         inline: inlineFlag,
-      },
+      }),
     },
     async ({ startDate, endDate, studentIds, filename, inline }) => {
       const { bytes, contentType } = await client.writeBinary('/parentReports/printCalendar', {
@@ -167,7 +167,7 @@ export function registerReportTools(server: McpServer, client: MhlbClient): void
         'and studentIds is required — the endpoint fails if it is empty, or if no order matches the date and ' +
         'status you ask for. Get both from mhlb_get_calendar.',
       annotations: toolAnnotations({ title: 'Print order details', readOnly: false, openWorld: true }),
-      inputSchema: {
+      inputSchema: z.object({
         date: IsoDate.describe('The lunch date to report on (YYYY-MM-DD).'),
         orderStatus: z
           .union([z.literal(0), z.literal(1), z.literal(2)])
@@ -179,7 +179,7 @@ export function registerReportTools(server: McpServer, client: MhlbClient): void
           .describe('Students to include — at least one. An empty list makes the endpoint fail.'),
         filename: z.string().optional().describe('Output filename. Defaults to "Orders Details <date>.pdf".'),
         inline: inlineFlag,
-      },
+      }),
     },
     async ({ date, orderStatus, studentIds, filename, inline }) => {
       const { bytes, contentType } = await client.writeBinary('/parentReports/printOrders', {
@@ -198,14 +198,14 @@ export function registerReportTools(server: McpServer, client: MhlbClient): void
         'Generate the printable receipt PDF for one transaction. Pass the transaction object from ' +
         'mhlb_get_transaction — the endpoint renders that record, it does not look one up by id.',
       annotations: toolAnnotations({ title: 'Print transaction receipt', readOnly: false, openWorld: true }),
-      inputSchema: {
+      inputSchema: z.object({
         transaction: z
           .record(z.string(), z.unknown())
           .describe('The transaction detail object, as returned by mhlb_get_transaction.'),
         isCreditType: z.boolean().optional().describe('Render as a credit rather than a payment. Default false.'),
         filename: z.string().optional().describe('Output filename. Defaults to "Transaction.pdf".'),
         inline: inlineFlag,
-      },
+      }),
     },
     async ({ transaction, isCreditType, filename, inline }) => {
       const { bytes, contentType } = await client.writeBinary('/parentReports/printTransactions', {

@@ -1,5 +1,6 @@
 import { toolAnnotations } from '@chrischall/mcp-utils';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { z } from 'zod';
+import type { McpServer } from '@modelcontextprotocol/server';
 import type { MhlbClient } from '../client.js';
 import { minifiedResult } from './_shared.js';
 
@@ -30,7 +31,7 @@ export function registerAccountTools(server: McpServer, client: MhlbClient): voi
         'pending order count, account credit balances, and whether subscriptions are enabled. ' +
         'Start here to confirm the session works.',
       annotations: toolAnnotations({ title: 'Who am I', openWorld: true }),
-      inputSchema: {},
+      inputSchema: z.object({}),
     },
     async () => minifiedResult(await client.get<UserInfo>('/auth/userinfo')),
   );
@@ -42,7 +43,7 @@ export function registerAccountTools(server: McpServer, client: MhlbClient): voi
         'Discard the cached My Hot Lunchbox access token so the next tool call signs in again. ' +
         'Use after changing credentials, or if calls start failing with stale-session errors.',
       annotations: toolAnnotations({ title: 'Reset session', readOnly: false, idempotent: true }),
-      inputSchema: {},
+      inputSchema: z.object({}),
     },
     async () => {
       const wasAuthenticated = client.isAuthenticated;

@@ -1,6 +1,6 @@
 import { toolAnnotations, PositiveInt, NonEmptyString, schemaConfirm } from '@chrischall/mcp-utils';
 import { z } from 'zod';
-import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import type { McpServer } from '@modelcontextprotocol/server';
 import type { MhlbClient } from '../client.js';
 import { UNVERIFIED, minifiedResult, preview } from './_shared.js';
 import { OrderRefShape, orderRefBody } from './orders.js';
@@ -11,10 +11,10 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
     {
       description: 'List payment transactions on the account — date, amount, and what was paid for.',
       annotations: toolAnnotations({ title: 'List transactions', openWorld: true }),
-      inputSchema: {
+      inputSchema: z.object({
         period: z.string().optional().describe('Ordering period to scope to, from mhlb_get_cart_tabs.'),
         studentId: PositiveInt.optional().describe('Limit to one student.'),
-      },
+      }),
     },
     async ({ period, studentId }) =>
       minifiedResult(await client.get('/event/transactionsList', { selectedPeriod: period, selectedStudentId: studentId })),
@@ -25,7 +25,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
     {
       description: 'Get the line-item detail of one transaction — which lunches it paid for.',
       annotations: toolAnnotations({ title: 'Get transaction', openWorld: true }),
-      inputSchema: { transactionId: PositiveInt.describe('Transaction id (the `id` field from mhlb_list_transactions).') },
+      inputSchema: z.object({ transactionId: PositiveInt.describe('Transaction id (the `id` field from mhlb_list_transactions).') }),
     },
     // The query parameter is `id`, not `transactionId` — verified live.
     async ({ transactionId }) => minifiedResult(await client.get('/event/transactionDetails', { id: transactionId })),
@@ -37,7 +37,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
       description:
         'List upcoming lunch subscriptions — the recurring orders that will be placed and charged automatically.',
       annotations: toolAnnotations({ title: 'List subscriptions', openWorld: true }),
-      inputSchema: { period: z.string().optional().describe('Ordering period to scope to.') },
+      inputSchema: z.object({ period: z.string().optional().describe('Ordering period to scope to.') }),
     },
     async ({ period }) => minifiedResult(await client.get('/event/upcomingSubscriptions', { period })),
   );
@@ -47,7 +47,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
     {
       description: 'Get the account’s subscription configuration — whether recurring ordering is on, and its terms.',
       annotations: toolAnnotations({ title: 'Get subscription settings', openWorld: true }),
-      inputSchema: {},
+      inputSchema: z.object({}),
     },
     async () => minifiedResult(await client.get('/event/subscription')),
   );
@@ -59,10 +59,10 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
         'Turn recurring lunch subscriptions on or off for the account. Turning it ON means future lunches are ' +
         'ordered and charged automatically.' + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Enable/disable subscriptions', readOnly: false, openWorld: true }),
-      inputSchema: {
+      inputSchema: z.object({
         enabled: z.boolean().describe('true to enable recurring subscriptions, false to disable.'),
         confirm: schemaConfirm,
-      },
+      }),
     },
     async ({ enabled, confirm }) => {
       if (!confirm) {
@@ -85,7 +85,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
       annotations: toolAnnotations({ title: 'Unsubscribe an order', readOnly: false, openWorld: true }),
       // Same identifier payload as mhlb_delete_order — the site's order-mixin
       // routes to whichever endpoint by `isSubscribed`, with one body shape.
-      inputSchema: { ...OrderRefShape, confirm: schemaConfirm },
+      inputSchema: z.object({ ...OrderRefShape, confirm: schemaConfirm }),
     },
     // The upstream route really is spelled `unsubcribeOrder`.
     async ({ confirm, ...ref }) => {
@@ -104,7 +104,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
     {
       description: 'List gift cards on the account — codes, balances and status.',
       annotations: toolAnnotations({ title: 'List gift cards', openWorld: true }),
-      inputSchema: {},
+      inputSchema: z.object({}),
     },
     async () => minifiedResult(await client.get('/parent/giftCardDataTables')),
   );
@@ -114,7 +114,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
     {
       description: 'Redeem a gift card code onto the account balance.' + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Apply gift card', readOnly: false, openWorld: true }),
-      inputSchema: { code: NonEmptyString.describe('Gift card code.'), confirm: schemaConfirm },
+      inputSchema: z.object({ code: NonEmptyString.describe('Gift card code.'), confirm: schemaConfirm }),
     },
     async ({ code, confirm }) => {
       if (!confirm) {
@@ -129,7 +129,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
     {
       description: 'Get the coupon currently applied to the account, if any.',
       annotations: toolAnnotations({ title: 'Get applied coupon', openWorld: true }),
-      inputSchema: {},
+      inputSchema: z.object({}),
     },
     async () => minifiedResult(await client.get('/parent/coupon')),
   );
@@ -139,7 +139,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
     {
       description: 'Apply a coupon code to the account.' + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Apply coupon', readOnly: false, openWorld: true }),
-      inputSchema: { code: NonEmptyString.describe('Coupon code.'), confirm: schemaConfirm },
+      inputSchema: z.object({ code: NonEmptyString.describe('Coupon code.'), confirm: schemaConfirm }),
     },
     async ({ code, confirm }) => {
       if (!confirm) {
@@ -154,7 +154,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
     {
       description: 'Remove the coupon currently applied to the account.' + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Remove coupon', readOnly: false, openWorld: true }),
-      inputSchema: { confirm: schemaConfirm },
+      inputSchema: z.object({ confirm: schemaConfirm }),
     },
     async ({ confirm }) => {
       if (!confirm) return preview('Remove coupon', { method: 'POST', path: '/parent/removeCoupon' });
