@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.0.0](https://github.com/chrischall/myhotlunchbox-mcp/compare/v0.5.1...v1.0.0) (2026-09-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* **mcp:** migrate server to SDK v2 ([#65](https://github.com/chrischall/myhotlunchbox-mcp/issues/65))
+
+### Features
+
+* **mcp:** migrate server to SDK v2 ([#65](https://github.com/chrischall/myhotlunchbox-mcp/issues/65)) ([d0d8418](https://github.com/chrischall/myhotlunchbox-mcp/commit/d0d84184fcf4abbd559172f03db6af021749b915))
+
 ## [0.5.1](https://github.com/chrischall/myhotlunchbox-mcp/compare/v0.5.0...v0.5.1) (2026-09-10)
 
 
