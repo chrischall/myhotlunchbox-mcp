@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.0](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.0.0...v1.1.0) (2026-09-19)
+
+
+### Features
+
+* **deps:** take mcp-utils 1.0.0, so the server boots through serveStdio ([#71](https://github.com/chrischall/myhotlunchbox-mcp/issues/71)) ([8d4f283](https://github.com/chrischall/myhotlunchbox-mcp/commit/8d4f283097dcf2a158fa833cea6b538183c145bc))
+
+
+### Documentation
+
+* **readme:** date the live read-verification claim ([#69](https://github.com/chrischall/myhotlunchbox-mcp/issues/69)) ([d8dd792](https://github.com/chrischall/myhotlunchbox-mcp/commit/d8dd792357cbd4a68d3c76d2434407b8d9710903))
+
 ## [1.0.0](https://github.com/chrischall/myhotlunchbox-mcp/compare/v0.5.1...v1.0.0) (2026-09-19)
 
 
