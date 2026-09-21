@@ -133,7 +133,7 @@ export function registerReportTools(server: McpServer, client: MhlbClient): void
       description:
         'Generate the printable lunch calendar PDF for a date range. Writes the PDF to disk and returns its ' +
         'path (or the bytes inline with inline: true).',
-      annotations: toolAnnotations({ title: 'Print lunch calendar', readOnly: false, openWorld: true }),
+      annotations: toolAnnotations({ title: 'Print lunch calendar', readOnly: false, openWorld: true, destructive: false }),
       inputSchema: z.object({
         startDate: IsoDate.describe('First day to include (YYYY-MM-DD).'),
         endDate: IsoDate.describe('Last day to include (YYYY-MM-DD).'),
@@ -166,7 +166,7 @@ export function registerReportTools(server: McpServer, client: MhlbClient): void
         'Generate the printable order-details PDF for a single lunch date. Note this is one date, not a range, ' +
         'and studentIds is required — the endpoint fails if it is empty, or if no order matches the date and ' +
         'status you ask for. Get both from mhlb_get_calendar.',
-      annotations: toolAnnotations({ title: 'Print order details', readOnly: false, openWorld: true }),
+      annotations: toolAnnotations({ title: 'Print order details', readOnly: false, openWorld: true, destructive: false }),
       inputSchema: z.object({
         date: IsoDate.describe('The lunch date to report on (YYYY-MM-DD).'),
         orderStatus: z
@@ -197,7 +197,7 @@ export function registerReportTools(server: McpServer, client: MhlbClient): void
       description:
         'Generate the printable receipt PDF for one transaction. Pass the transaction object from ' +
         'mhlb_get_transaction — the endpoint renders that record, it does not look one up by id.',
-      annotations: toolAnnotations({ title: 'Print transaction receipt', readOnly: false, openWorld: true }),
+      annotations: toolAnnotations({ title: 'Print transaction receipt', readOnly: false, openWorld: true, destructive: false }),
       inputSchema: z.object({
         transaction: z
           .record(z.string(), z.unknown())

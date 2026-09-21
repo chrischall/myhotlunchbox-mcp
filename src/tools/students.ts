@@ -69,7 +69,7 @@ export function registerStudentTools(server: McpServer, client: MhlbClient): voi
       description:
         'Add a student to the account. Call mhlb_new_student_form first and send that model back with the ' +
         'fields filled in.' + UNVERIFIED,
-      annotations: toolAnnotations({ title: 'Create student', readOnly: false, openWorld: true }),
+      annotations: toolAnnotations({ title: 'Create student', readOnly: false, openWorld: true, destructive: false }),
       inputSchema: z.object({ student: StudentModel, confirm: schemaConfirm }),
     },
     async ({ student, confirm }) => {
@@ -84,7 +84,7 @@ export function registerStudentTools(server: McpServer, client: MhlbClient): voi
       description:
         'Update a student profile. Call mhlb_get_student_form first and send that model back with your edits — ' +
         'the endpoint replaces the whole record, so omitted fields are lost.' + UNVERIFIED,
-      annotations: toolAnnotations({ title: 'Update student', readOnly: false, openWorld: true }),
+      annotations: toolAnnotations({ title: 'Update student', readOnly: false, openWorld: true, destructive: false }),
       inputSchema: z.object({ student: StudentModel, confirm: schemaConfirm }),
     },
     async ({ student, confirm }) => {
@@ -103,7 +103,7 @@ export function registerStudentTools(server: McpServer, client: MhlbClient): voi
       description:
         'Remove a student from the account. Irreversible from this API — their order history goes with them.' +
         UNVERIFIED,
-      annotations: toolAnnotations({ title: 'Delete student', readOnly: false, openWorld: true }),
+      annotations: toolAnnotations({ title: 'Delete student', readOnly: false, openWorld: true, destructive: true }),
       inputSchema: z.object({
         studentId: PositiveInt.describe('Student id from mhlb_list_students.'),
         confirm: schemaConfirm,

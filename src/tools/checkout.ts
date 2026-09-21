@@ -24,7 +24,7 @@ export function registerCheckoutTools(server: McpServer, client: MhlbClient): vo
         'Start checkout for the cart: returns the order summary, totals, taxes, applied credits and the ' +
         'available payment methods. This does NOT charge anything — it is the read step before mhlb_checkout.' +
         UNVERIFIED,
-      annotations: toolAnnotations({ title: 'Initialise checkout', readOnly: false, openWorld: true }),
+      annotations: toolAnnotations({ title: 'Initialise checkout', readOnly: false, openWorld: true, destructive: false }),
       inputSchema: z.object({
         ...CheckoutShape,
         confirm: schemaConfirm,
@@ -49,7 +49,7 @@ export function registerCheckoutTools(server: McpServer, client: MhlbClient): vo
         'Run mhlb_init_checkout first, read the total it returns, and pass that figure as expectedTotal. ' +
         'Only a card ALREADY SAVED on the account can be used: paying with a new card needs a Stripe token ' +
         'minted by Stripe.js in a browser, which no server-side client can produce.' + UNVERIFIED,
-      annotations: toolAnnotations({ title: 'Pay for cart', readOnly: false, openWorld: true }),
+      annotations: toolAnnotations({ title: 'Pay for cart', readOnly: false, openWorld: true, destructive: true }),
       inputSchema: z.object({
         ...CheckoutShape,
         availableCredits: z

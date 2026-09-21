@@ -42,7 +42,7 @@ export function registerAccountTools(server: McpServer, client: MhlbClient): voi
       description:
         'Discard the cached My Hot Lunchbox access token so the next tool call signs in again. ' +
         'Use after changing credentials, or if calls start failing with stale-session errors.',
-      annotations: toolAnnotations({ title: 'Reset session', readOnly: false, idempotent: true }),
+      annotations: toolAnnotations({ title: 'Reset session', readOnly: false, idempotent: true, destructive: false }),
       inputSchema: z.object({}),
     },
     async () => {
