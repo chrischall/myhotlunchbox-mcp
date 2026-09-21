@@ -1,6 +1,6 @@
 # myhotlunchbox-mcp
 
-Repo-specific notes. Fleet-wide conventions live in `~/.Codex/AGENTS.md` and
+Repo-specific notes. Fleet-wide conventions live in `~/.codex/AGENTS.md` and
 are deliberately not restated here.
 
 ## Archetype
