@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.2](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.1.1...v1.1.2) (2026-09-21)
+
+
+### Bug Fixes
+
+* **deps:** bump dotenv from 17.4.2 to 18.0.0 ([#78](https://github.com/chrischall/myhotlunchbox-mcp/issues/78)) ([e120e47](https://github.com/chrischall/myhotlunchbox-mcp/commit/e120e47da8220bc2b9dbe070bf6c09ad000b219e))
+
 ## [1.1.1](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.1.0...v1.1.1) (2026-09-21)
 
 
