@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.1](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.1.0...v1.1.1) (2026-09-21)
+
+
+### Bug Fixes
+
+* **tools:** say which writes are destructive — starting with the one that charges a card ([#72](https://github.com/chrischall/myhotlunchbox-mcp/issues/72)) ([2fad472](https://github.com/chrischall/myhotlunchbox-mcp/commit/2fad4726e2d496d4bb36d034a261958b4ed2f39e))
+
+
+### Documentation
+
+* AGENTS.md pointed at a directory that does not exist ([#74](https://github.com/chrischall/myhotlunchbox-mcp/issues/74)) ([a94894e](https://github.com/chrischall/myhotlunchbox-mcp/commit/a94894e88ad6a09e9da719eb37f4f8d5d5f35f61))
+
 ## [1.1.0](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.0.0...v1.1.0) (2026-09-19)
 
 
