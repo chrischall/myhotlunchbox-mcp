@@ -159,7 +159,7 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
       description:
         'Place a lunch order into the cart. Call mhlb_get_order_form first and send that model back with ' +
         'quantities set. This adds to the cart — it does not pay; use mhlb_checkout for that.' + UNVERIFIED,
-      annotations: toolAnnotations({ title: 'Create order', readOnly: false, openWorld: true }),
+      annotations: toolAnnotations({ title: 'Create order', readOnly: false, openWorld: true, destructive: false }),
       inputSchema: z.object({ order: OrderModel, confirm: schemaConfirm }),
     },
     async ({ order, confirm }) => {
@@ -178,7 +178,7 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
       description:
         'Change an existing lunch order. Call mhlb_get_order first and send that model back with your edits — ' +
         'the endpoint replaces the whole order.' + UNVERIFIED,
-      annotations: toolAnnotations({ title: 'Update order', readOnly: false, openWorld: true }),
+      annotations: toolAnnotations({ title: 'Update order', readOnly: false, openWorld: true, destructive: false }),
       inputSchema: z.object({ order: OrderModel, confirm: schemaConfirm }),
     },
     async ({ order, confirm }) => {
@@ -197,7 +197,7 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
       description:
         'Cancel a lunch order. If it was already paid for, the refund behaviour is whatever My Hot Lunchbox ' +
         'applies — this tool does not control it.' + UNVERIFIED,
-      annotations: toolAnnotations({ title: 'Delete order', readOnly: false, openWorld: true }),
+      annotations: toolAnnotations({ title: 'Delete order', readOnly: false, openWorld: true, destructive: true }),
       inputSchema: z.object({ ...OrderRefShape, confirm: schemaConfirm }),
     },
     async ({ confirm, ...ref }) => {

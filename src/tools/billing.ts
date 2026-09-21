@@ -58,7 +58,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
       description:
         'Turn recurring lunch subscriptions on or off for the account. Turning it ON means future lunches are ' +
         'ordered and charged automatically.' + UNVERIFIED,
-      annotations: toolAnnotations({ title: 'Enable/disable subscriptions', readOnly: false, openWorld: true }),
+      annotations: toolAnnotations({ title: 'Enable/disable subscriptions', readOnly: false, openWorld: true, destructive: true }),
       inputSchema: z.object({
         enabled: z.boolean().describe('true to enable recurring subscriptions, false to disable.'),
         confirm: schemaConfirm,
@@ -82,7 +82,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
     'mhlb_unsubscribe_order',
     {
       description: 'Stop a recurring subscription for a specific lunch order.' + UNVERIFIED,
-      annotations: toolAnnotations({ title: 'Unsubscribe an order', readOnly: false, openWorld: true }),
+      annotations: toolAnnotations({ title: 'Unsubscribe an order', readOnly: false, openWorld: true, destructive: true }),
       // Same identifier payload as mhlb_delete_order — the site's order-mixin
       // routes to whichever endpoint by `isSubscribed`, with one body shape.
       inputSchema: z.object({ ...OrderRefShape, confirm: schemaConfirm }),
@@ -113,7 +113,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
     'mhlb_apply_gift_card',
     {
       description: 'Redeem a gift card code onto the account balance.' + UNVERIFIED,
-      annotations: toolAnnotations({ title: 'Apply gift card', readOnly: false, openWorld: true }),
+      annotations: toolAnnotations({ title: 'Apply gift card', readOnly: false, openWorld: true, destructive: true }),
       inputSchema: z.object({ code: NonEmptyString.describe('Gift card code.'), confirm: schemaConfirm }),
     },
     async ({ code, confirm }) => {
@@ -138,7 +138,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
     'mhlb_apply_coupon',
     {
       description: 'Apply a coupon code to the account.' + UNVERIFIED,
-      annotations: toolAnnotations({ title: 'Apply coupon', readOnly: false, openWorld: true }),
+      annotations: toolAnnotations({ title: 'Apply coupon', readOnly: false, openWorld: true, destructive: false }),
       inputSchema: z.object({ code: NonEmptyString.describe('Coupon code.'), confirm: schemaConfirm }),
     },
     async ({ code, confirm }) => {
@@ -153,7 +153,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
     'mhlb_remove_coupon',
     {
       description: 'Remove the coupon currently applied to the account.' + UNVERIFIED,
-      annotations: toolAnnotations({ title: 'Remove coupon', readOnly: false, openWorld: true }),
+      annotations: toolAnnotations({ title: 'Remove coupon', readOnly: false, openWorld: true, destructive: false }),
       inputSchema: z.object({ confirm: schemaConfirm }),
     },
     async ({ confirm }) => {
