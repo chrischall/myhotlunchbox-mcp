@@ -219,6 +219,40 @@ describe('checkout safety', () => {
     }
   });
 
+  it.each([
+    [
+      'a network failure',
+      () => {
+        throw new TypeError('fetch failed');
+      },
+    ],
+    ['a 5xx', () => new Response('upstream down', { status: 502 })],
+  ])('hands back the idempotency key when the charge fails with %s', async (_label, failure) => {
+    // The charge may have gone through before the failure. Without the key the
+    // model cannot "reuse the SAME key", so its retry would mint a new one and
+    // the server would treat it as a second charge.
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      const token = tokenHandler()(url);
+      if (token) return token;
+      return failure();
+    });
+    const client = new MhlbClient(testConfig(), fetchSpy as unknown as typeof fetch);
+    const harness = await createTestHarness((server) => {
+      for (const register of ALL_REGISTRARS) register(server, client);
+    });
+    try {
+      const result = await harness.callTool('mhlb_checkout', { orderIds: [1], expectedTotal: 4, confirm: true });
+      expect(result.isError).toBe(true);
+      const call = fetchSpy.mock.calls.find((c) => String(c[0]).includes('/payment/checkout'));
+      const sentKey = String(JSON.parse(String((call?.[1] as RequestInit).body)).idempotencyKey);
+      const text = JSON.stringify(result.content);
+      expect(text).toContain(`idempotencyKey=${sentKey}`);
+    } finally {
+      await harness.close();
+    }
+  });
+
   it('refuses to pay a non-zero total with no orderIds', async () => {
     const { harness, fetchSpy } = await harnessWithSpy();
     try {
