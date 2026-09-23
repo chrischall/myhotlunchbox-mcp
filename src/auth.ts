@@ -23,6 +23,24 @@ const DEFAULT_TOKEN_LIFETIME_S = 3600;
 export type FetchLike = typeof fetch;
 
 /**
+ * The token endpoint answered with an error. Carries the OAuth `error` code so
+ * callers can tell a rejected credential (`invalid_grant`) apart from a
+ * throttle or an outage — only the former says anything about the password.
+ */
+class GrantRejectedError extends McpToolError {
+  constructor(
+    message: string,
+    readonly oauthError: string | undefined,
+    opts: { hint?: string },
+  ) {
+    super(message, opts);
+  }
+}
+
+const isInvalidGrant = (err: unknown): err is GrantRejectedError =>
+  err instanceof GrantRejectedError && err.oauthError === 'invalid_grant';
+
+/**
  * Strip the caller's own secrets out of an upstream body before it is ever
  * rendered to a user.
  *
@@ -53,6 +71,13 @@ export function scrubCredentials(text: string, secrets: readonly (string | undef
 export class MhlbAuth {
   private manager: TokenManager | null = null;
   private loginInFlight: Promise<TokenManager> | null = null;
+  /**
+   * Set once the password grant comes back `invalid_grant`. The account locks
+   * or forces a CAPTCHA after repeated failures, so every later sign-in fails
+   * fast with this error — without touching the network — until
+   * {@link reset} (mhlb_session_reset) or a restart.
+   */
+  private credentialRejected: GrantRejectedError | null = null;
 
   constructor(
     private readonly config: MhlbConfig,
@@ -109,12 +134,14 @@ export class MhlbAuth {
       }
       const detail = parsed?.error_description ?? parsed?.error ?? raw;
       // Never auto-retry a rejected credential: these servers count attempts.
-      throw new McpToolError(
+      throw new GrantRejectedError(
         `My Hot Lunchbox rejected the sign-in (HTTP ${res.status}): ${scrubCredentials(detail, [password, form.password, form.refresh_token])}`,
+        parsed?.error,
         {
           hint:
             parsed?.error === 'invalid_grant'
-              ? 'Check MYHOTLUNCHBOX_USERNAME / MYHOTLUNCHBOX_PASSWORD. Do not retry with guesses — repeated failures can lock the account or force a CAPTCHA that blocks server-side sign-in entirely.'
+              ? 'Check MYHOTLUNCHBOX_USERNAME / MYHOTLUNCHBOX_PASSWORD. Do not retry with guesses — repeated failures can lock the account or force a CAPTCHA that blocks server-side sign-in entirely. ' +
+                'Further sign-ins are blocked in this process until the credentials are fixed and mhlb_session_reset is run (or the server restarts).'
               : 'Sign in once at https://ordernow.myhotlunchbox.com to confirm the account is active, then retry.',
         },
       );
@@ -145,13 +172,19 @@ export class MhlbAuth {
 
   /** Full password grant. */
   private async passwordLogin(): Promise<TokenResponse> {
+    if (this.credentialRejected) throw this.credentialRejected;
     const { username, password } = this.requireCredentials();
-    return this.postGrant({
-      grant_type: 'password',
-      username,
-      password,
-      scope: OAUTH_SCOPE,
-    });
+    try {
+      return await this.postGrant({
+        grant_type: 'password',
+        username,
+        password,
+        scope: OAUTH_SCOPE,
+      });
+    } catch (err) {
+      if (isInvalidGrant(err)) this.credentialRejected = err;
+      throw err;
+    }
   }
 
   /**
@@ -185,10 +218,14 @@ export class MhlbAuth {
           let next: TokenResponse;
           try {
             next = await this.postGrant({ grant_type: 'refresh_token', refresh_token: refreshToken });
-          } catch {
-            // The refresh token expired or was revoked. We still hold the
-            // password, so recover with a full login instead of surfacing a
-            // re-auth error the caller cannot act on.
+          } catch (err) {
+            // Only a refresh token the server REJECTED (expired or revoked)
+            // warrants a full login. A 429, a 5xx or a network failure says
+            // nothing about the refresh token — answering it with a password
+            // grant would spend lockout budget on an outage.
+            if (!isInvalidGrant(err)) throw err;
+            // We still hold the password, so recover with a full login instead
+            // of surfacing a re-auth error the caller cannot act on.
             next = await this.passwordLogin();
           }
           return {
@@ -219,10 +256,20 @@ export class MhlbAuth {
     return manager.withAuth(call);
   }
 
-  /** Drop the cached session. Exposed for the `_signout` tool and for tests. */
+  /**
+   * Drop the session — in memory AND on disk — and lift a rejected-credential
+   * latch, so the next call really signs in again. Backs mhlb_session_reset.
+   *
+   * The persisted token must go too: a new TokenManager bootstraps from the
+   * cache before it would ever log in, so clearing only the in-memory manager
+   * hands the same stale token straight back. Cleared through a fresh handle
+   * so a reset in a process that has not signed in yet still reaches the file.
+   */
   reset(): void {
     this.manager = null;
     this.loginInFlight = null;
+    this.credentialRejected = null;
+    createTokenCache()?.clear();
   }
 
   /** Raw fetch through the injected implementation (no auth attached). */

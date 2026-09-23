@@ -92,7 +92,8 @@ export function registerCheckoutTools(server: McpServer, client: MhlbClient): vo
           'No stripeToken is sent, so this can only pay with a card already saved on the account. ' +
             'Paying with a NEW card needs a Stripe token minted by Stripe.js in a browser, which no ' +
             'server-side client can produce — do that on the site.',
-          `Idempotency key for this attempt: ${key}. Reuse it if you retry.`,
+          `Idempotency key for this attempt: ${key}. Pass it as idempotencyKey on the confirmed call, and ` +
+            'reuse it if you retry — the confirmed call otherwise generates a fresh one.',
         ]);
       }
 
@@ -105,7 +106,24 @@ export function registerCheckoutTools(server: McpServer, client: MhlbClient): vo
       // Nested, not spread: the response shape is unverified, so spreading it
       // would mangle a non-object and would let `expectedTotal`/`idempotencyKey`
       // silently shadow same-named server fields.
-      const result = await client.write<unknown>('/payment/checkout', body);
+      let result: unknown;
+      try {
+        result = await client.write<unknown>('/payment/checkout', body);
+      } catch (cause) {
+        // A timeout, dropped connection or 5xx can land AFTER the server has
+        // charged. The key is the only thing that makes a retry safe, and a
+        // generated one exists nowhere but here — so it must ride on the error.
+        const detail = cause instanceof Error ? cause.message : String(cause);
+        throw new McpToolError(
+          `Checkout failed and may or may not have charged (idempotencyKey=${key}): ${detail}`,
+          {
+            hint:
+              'Check mhlb_list_transactions before paying again. If you retry, pass ' +
+              `idempotencyKey=${key} — a new key would let the server take a second charge.`,
+            cause,
+          },
+        );
+      }
       return minifiedResult({ result, expectedTotal, idempotencyKey: key });
     },
   );

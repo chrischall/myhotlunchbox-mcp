@@ -223,3 +223,144 @@ describe('MhlbAuth — a dead refresh does not trigger a third attempt', () => {
     expect(logins).toBe(2);
   });
 });
+
+describe('MhlbAuth — reset() with the token cache on', () => {
+  it('discards the persisted token so the next call really signs in again', async () => {
+    // The cache is the default in production; the suite turns it off. With it
+    // on, a new TokenManager bootstraps from token.json first — so a reset that
+    // only drops the in-memory manager hands the SAME stale token straight back.
+    vi.stubEnv('MYHOTLUNCHBOX_TOKEN_CACHE', 'true');
+    vi.stubEnv('MYHOTLUNCHBOX_USERNAME', 'parent@example.com');
+    vi.stubEnv('MYHOTLUNCHBOX_PASSWORD', TEST_PASSWORD);
+    try {
+      let logins = 0;
+      const fetchImpl = mockFetch([
+        (url) => {
+          if (!url.endsWith('/api/auth/login')) return undefined;
+          logins += 1;
+          return jsonResponse({ access_token: `AT${logins}`, refresh_token: 'RT', expires_in: 3600 });
+        },
+      ]);
+
+      const first = new MhlbAuth(testConfig(), fetchImpl);
+      await first.withAuth(async () => jsonResponse({}));
+      expect(logins).toBe(1);
+
+      first.reset();
+      const seen: string[] = [];
+      await first.withAuth(async (token) => {
+        seen.push(token);
+        return jsonResponse({});
+      });
+      expect(logins).toBe(2);
+      expect(seen).toEqual(['AT2']);
+
+      // A reset in a fresh process (nothing in memory yet) must also discard
+      // the file, or the stale token survives a restart + reset.
+      const second = new MhlbAuth(testConfig(), fetchImpl);
+      second.reset();
+      await second.withAuth(async () => jsonResponse({}));
+      expect(logins).toBe(3);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+});
+
+describe('MhlbAuth — a rejected credential is not replayed', () => {
+  it('fails fast without contacting the network after the password grant is rejected', async () => {
+    let attempts = 0;
+    const fetchImpl = mockFetch([
+      (url) => {
+        if (!url.endsWith('/api/auth/login')) return undefined;
+        attempts += 1;
+        return jsonResponse({ error: 'invalid_grant', error_description: 'nope' }, 400);
+      },
+    ]);
+
+    const auth = new MhlbAuth(testConfig(), fetchImpl);
+    const first = await auth.withAuth(async () => jsonResponse({})).catch((e: Error) => e);
+    const second = await auth.withAuth(async () => jsonResponse({})).catch((e: Error) => e);
+    const third = await auth.withAuth(async () => jsonResponse({})).catch((e: Error) => e);
+
+    expect(attempts).toBe(1);
+    expect(first).toBeInstanceOf(Error);
+    expect((second as Error).message).toMatch(/rejected/i);
+    expect((third as Error).message).toMatch(/rejected/i);
+  });
+
+  it('latches a rejection reached through the refresh fallback too', async () => {
+    let passwordGrants = 0;
+    const fetchImpl = mockFetch([
+      (url, init) => {
+        if (!url.endsWith('/api/auth/login')) return undefined;
+        const body = String(init.body);
+        if (body.includes('grant_type=password')) {
+          passwordGrants += 1;
+          if (passwordGrants === 1) {
+            return jsonResponse({ access_token: 'AT', refresh_token: 'RT', expires_in: -1 });
+          }
+          return jsonResponse({ error: 'invalid_grant' }, 400); // password changed on the site
+        }
+        return jsonResponse({ error: 'invalid_grant' }, 400);
+      },
+    ]);
+
+    const auth = new MhlbAuth(testConfig(), fetchImpl);
+    await auth.withAuth(async () => jsonResponse({})).catch(() => undefined);
+    await auth.withAuth(async () => jsonResponse({})).catch(() => undefined);
+    await auth.withAuth(async () => jsonResponse({})).catch(() => undefined);
+
+    // Bootstrap + ONE fallback; later calls fail fast instead of spending
+    // another attempt from the lockout budget each.
+    expect(passwordGrants).toBe(2);
+  });
+
+  it('reset() lifts the latch so fixed credentials can be tried again', async () => {
+    let attempts = 0;
+    const fetchImpl = mockFetch([
+      (url) => {
+        if (!url.endsWith('/api/auth/login')) return undefined;
+        attempts += 1;
+        return attempts === 1
+          ? jsonResponse({ error: 'invalid_grant' }, 400)
+          : jsonResponse({ access_token: 'AT', refresh_token: 'RT', expires_in: 3600 });
+      },
+    ]);
+
+    const auth = new MhlbAuth(testConfig(), fetchImpl);
+    await auth.withAuth(async () => jsonResponse({})).catch(() => undefined);
+    auth.reset();
+    await expect(auth.withAuth(async () => jsonResponse({}))).resolves.toBeInstanceOf(Response);
+    expect(attempts).toBe(2);
+  });
+
+  it.each([
+    ['a 429', () => jsonResponse({ error: 'too_many_requests' }, 429)],
+    ['a 5xx', () => new Response('upstream down', { status: 503 })],
+    [
+      'a network failure',
+      () => {
+        throw new TypeError('fetch failed');
+      },
+    ],
+  ])('does not burn a password attempt when the refresh fails with %s', async (_label, refreshFailure) => {
+    let passwordGrants = 0;
+    const fetchImpl = mockFetch([
+      (url, init) => {
+        if (!url.endsWith('/api/auth/login')) return undefined;
+        const body = String(init.body);
+        if (body.includes('grant_type=password')) {
+          passwordGrants += 1;
+          return jsonResponse({ access_token: 'AT', refresh_token: 'RT', expires_in: -1 });
+        }
+        return refreshFailure();
+      },
+    ]);
+
+    const auth = new MhlbAuth(testConfig(), fetchImpl);
+    await auth.withAuth(async () => jsonResponse({})).catch(() => undefined);
+
+    expect(passwordGrants).toBe(1);
+  });
+});
