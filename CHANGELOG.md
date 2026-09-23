@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.4](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.1.3...v1.1.4) (2026-09-23)
+
+
+### Bug Fixes
+
+* session reset clears the token cache, rejected passwords aren't retried, checkout errors return the idempotency key ([#83](https://github.com/chrischall/myhotlunchbox-mcp/issues/83)) ([8fcb3b9](https://github.com/chrischall/myhotlunchbox-mcp/commit/8fcb3b9ae1f6218fab7b57b9a4797ba7a2c29b51))
+
 ## [1.1.3](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.1.2...v1.1.3) (2026-09-23)
 
 
