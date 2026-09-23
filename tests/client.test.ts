@@ -91,7 +91,7 @@ describe('MhlbClient', () => {
 
     const err = await client.write('/event/createOrder', {}).catch((e: Error) => e);
     expect((err as Error).message).not.toContain(TEST_PASSWORD);
-    expect((err as Error).message).toContain('[redacted]');
+    expect((err as Error).message).toContain('[REDACTED]');
   });
 
   it('reports an HTML sign-in page as a shape problem, not silent garbage', async () => {

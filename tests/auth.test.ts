@@ -105,7 +105,7 @@ describe('MhlbAuth', () => {
 
     expect(err).toBeInstanceOf(Error);
     expect((err as Error).message).not.toContain(TEST_PASSWORD);
-    expect((err as Error).message).toContain('[redacted]');
+    expect((err as Error).message).toContain('[REDACTED]');
   });
 
   it('does not retry a rejected credential', async () => {
