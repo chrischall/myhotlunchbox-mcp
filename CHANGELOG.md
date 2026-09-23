@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.3](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.1.2...v1.1.3) (2026-09-23)
+
+
+### Bug Fixes
+
+* **deps:** require zod ^4.6.5 to match @chrischall/mcp-utils 2.4.0 ([#82](https://github.com/chrischall/myhotlunchbox-mcp/issues/82)) ([f31d8f2](https://github.com/chrischall/myhotlunchbox-mcp/commit/f31d8f25a59437527155a66d26ff84daf3eae7b0))
+* **deps:** upgrade @chrischall/mcp-utils to 2.4.0 and @fetchproxy/* to 3.2.0 ([#80](https://github.com/chrischall/myhotlunchbox-mcp/issues/80)) ([0b50cd6](https://github.com/chrischall/myhotlunchbox-mcp/commit/0b50cd61081aaf81ea6908376172abadb2a41ab1))
+
 ## [1.1.2](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.1.1...v1.1.2) (2026-09-21)
 
 
