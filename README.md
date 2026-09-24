@@ -63,7 +63,9 @@ forced `zod` 4.6.2 bump — 20/20 green.
 `mhlb_list_subscriptions`, `mhlb_get_subscription_settings`,
 `mhlb_set_subscription_enabled`, `mhlb_unsubscribe_order`,
 `mhlb_list_gift_cards`, `mhlb_apply_gift_card`, `mhlb_get_coupon`,
-`mhlb_apply_coupon`, `mhlb_remove_coupon`
+`mhlb_apply_coupon`, `mhlb_remove_coupon`. `mhlb_list_gift_cards` masks each code to its
+last 4 characters (a code is redeemable money); pass `revealCodes: true` for
+the full code.
 
 **Checkout** — `mhlb_init_checkout`, `mhlb_checkout`
 
