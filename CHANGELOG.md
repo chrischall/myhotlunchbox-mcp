@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.0](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.1.4...v1.2.0) (2026-09-24)
+
+
+### Features
+
+* confirm writes with a preview token instead of confirm: true ([#85](https://github.com/chrischall/myhotlunchbox-mcp/issues/85)) ([39424d2](https://github.com/chrischall/myhotlunchbox-mcp/commit/39424d28f1009810e5d5547710154059034ea6bb))
+
+
+### Refactor
+
+* **checkout:** put CheckoutShape's doc comment back above it ([#88](https://github.com/chrischall/myhotlunchbox-mcp/issues/88)) ([6b3c853](https://github.com/chrischall/myhotlunchbox-mcp/commit/6b3c85346f5e8473483f10807b804f80c05be0c1))
+
 ## [1.1.4](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.1.3...v1.1.4) (2026-09-23)
 
 
