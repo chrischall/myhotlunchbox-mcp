@@ -110,11 +110,21 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
   server.registerTool(
     'mhlb_list_gift_cards',
     {
-      description: 'List gift cards on the account — codes, balances and status.',
+      description:
+        'List gift cards on the account — balances and status, with each code masked to its last 4 characters. ' +
+        'Pass revealCodes: true only when the user needs a full code.',
       annotations: toolAnnotations({ title: 'List gift cards', openWorld: true }),
-      inputSchema: z.object({}),
+      inputSchema: z.object({
+        revealCodes: z
+          .boolean()
+          .optional()
+          .describe('Return full gift-card codes instead of masked ones. A code is redeemable money; default false.'),
+      }),
     },
-    async () => minifiedResult(await client.get('/parent/giftCardDataTables')),
+    async ({ revealCodes }) => {
+      const data = await client.get('/parent/giftCardDataTables');
+      return minifiedResult(revealCodes ? data : maskGiftCardCodes(data));
+    },
   );
 
   server.registerTool(
@@ -188,5 +198,36 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
       if (gate) return gate;
       return minifiedResult(await client.write('/parent/removeCoupon'));
     },
+  );
+}
+
+/**
+ * Keys that hold a gift-card code (a redeemable bearer value): `code`,
+ * `giftCardCode`, `cardNumber`, `giftCardNo`, … — but not `statusCode` and
+ * friends, which are enum values.
+ */
+const GIFT_CARD_CODE_KEY = /^code$|^(?:gift_?)?card_?(?:code|number|no|num)$/i;
+
+/** `'****' + last 4` — enough to tell cards apart, not enough to redeem one. */
+export function maskCode(code: string): string {
+  return `****${code.slice(-4)}`;
+}
+
+/**
+ * Mask every gift-card code in a `/parent/giftCardDataTables` response,
+ * leaving every other field (ids, balances, status, dates) intact. Walks the
+ * whole value rather than assuming one row shape, so a DataTables envelope, a
+ * bare array, or a renamed field are all covered.
+ */
+export function maskGiftCardCodes(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(maskGiftCardCodes);
+  if (value === null || typeof value !== 'object') return value;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([k, v]) => {
+      if (GIFT_CARD_CODE_KEY.test(k) && (typeof v === 'string' || typeof v === 'number')) {
+        return [k, maskCode(String(v))];
+      }
+      return [k, maskGiftCardCodes(v)];
+    }),
   );
 }

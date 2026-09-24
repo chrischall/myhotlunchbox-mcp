@@ -142,7 +142,7 @@
     },
     {
       "name": "mhlb_list_gift_cards",
-      "description": "List gift cards on the account — codes, balances and status."
+      "description": "List gift cards on the account — balances and status, with each code masked to its last 4 characters (revealCodes: true for full codes)."
     },
     {
       "name": "mhlb_list_students",
