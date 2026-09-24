@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
-import { createTestHarness, parseToolResult } from '@chrischall/mcp-utils/test';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createTestHarness, parseToolResult, type TestHarness, type TestHarnessOptions } from '@chrischall/mcp-utils/test';
 import { MhlbClient } from '../src/client.js';
 import { registerAccountTools } from '../src/tools/account.js';
 import { registerStudentTools } from '../src/tools/students.js';
@@ -21,7 +21,7 @@ const ALL_REGISTRARS = [
 ];
 
 /** Harness whose fetch is a spy, so "did this touch the network?" is assertable. */
-async function harnessWithSpy(apiBody: unknown = { ok: true }) {
+async function harnessWithSpy(apiBody: unknown = { ok: true }, options?: TestHarnessOptions) {
   const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     const token = tokenHandler()(url);
@@ -31,7 +31,7 @@ async function harnessWithSpy(apiBody: unknown = { ok: true }) {
   const client = new MhlbClient(testConfig(), fetchSpy as unknown as typeof fetch);
   const harness = await createTestHarness((server) => {
     for (const register of ALL_REGISTRARS) register(server, client);
-  });
+  }, options);
   return { harness, fetchSpy };
 }
 
@@ -52,27 +52,148 @@ const WRITE_TOOLS: Array<[string, Record<string, unknown>]> = [
   ['mhlb_checkout', { orderIds: [1], expectedTotal: 10 }],
 ];
 
-describe('confirm gating', () => {
-  it.each(WRITE_TOOLS)('%s makes no network call without confirm', async (name, args) => {
+type PhaseOne = {
+  status: string;
+  dispatched: boolean;
+  confirmToken: string;
+  preview: { action: string; wouldSend: { method: string; path: string; query?: unknown; body?: unknown }; notes: string[] };
+};
+
+/** Phase 1 then phase 2 with the returned token — the token-flow equivalent of the old `confirm: true`. */
+async function callConfirmed(harness: TestHarness, name: string, args: Record<string, unknown>) {
+  const first = parseToolResult<PhaseOne>(await harness.callTool(name, args));
+  expect(first.status).toBe('confirmation-required');
+  return harness.callTool(name, { ...args, confirmToken: first.confirmToken });
+}
+
+const ENV_KEYS = ['MCP_CONFIRM_MODE', 'MCP_CONFIRM_TTL_SECONDS', 'MCP_CONFIRM_SECRET'] as const;
+let savedEnv: Record<string, string | undefined> = {};
+beforeEach(() => {
+  savedEnv = Object.fromEntries(ENV_KEYS.map((k) => [k, process.env[k]]));
+  for (const k of ENV_KEYS) delete process.env[k];
+});
+afterEach(() => {
+  for (const k of ENV_KEYS) {
+    if (savedEnv[k] === undefined) delete process.env[k];
+    else process.env[k] = savedEnv[k];
+  }
+});
+
+describe('confirmation gating', () => {
+  it.each(WRITE_TOOLS)('%s phase 1 returns a preview and a token, and makes no network call', async (name, args) => {
     const { harness, fetchSpy } = await harnessWithSpy();
     try {
-      const result = await harness.callTool(name, args);
-      const body = parseToolResult<{ dryRun: boolean; wouldSend: { method: string; path: string } }>(result);
+      const body = parseToolResult<PhaseOne>(await harness.callTool(name, args));
 
-      expect(body.dryRun).toBe(true);
-      expect(body.wouldSend.method).toBe('POST');
-      expect(body.wouldSend.path).toMatch(/^\//);
+      expect(body.status).toBe('confirmation-required');
+      expect(body.dispatched).toBe(false);
+      expect(typeof body.confirmToken).toBe('string');
+      expect(body.preview.wouldSend.method).toBe('POST');
+      expect(body.preview.wouldSend.path).toMatch(/^\//);
+      expect(Array.isArray(body.preview.notes)).toBe(true);
       expect(fetchSpy).not.toHaveBeenCalled();
     } finally {
       await harness.close();
     }
   });
 
-  it.each(WRITE_TOOLS)('%s does call through with confirm: true', async (name, args) => {
+  it.each(WRITE_TOOLS)('%s phase 2 with the token writes exactly once', async (name, args) => {
     const { harness, fetchSpy } = await harnessWithSpy();
     try {
-      await harness.callTool(name, { ...args, confirm: true });
-      expect(fetchSpy).toHaveBeenCalled();
+      const first = parseToolResult<PhaseOne>(await harness.callTool(name, args));
+      expect(fetchSpy).not.toHaveBeenCalled();
+      const result = await harness.callTool(name, { ...args, confirmToken: first.confirmToken });
+      expect(result.isError).toBeFalsy();
+      const writes = fetchSpy.mock.calls.filter((c) => String(c[0]).includes(first.preview.wouldSend.path));
+      expect(writes).toHaveLength(1);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  it('no longer accepts confirm: true as a way past the gate', async () => {
+    const { harness, fetchSpy } = await harnessWithSpy();
+    try {
+      const body = parseToolResult<PhaseOne>(await harness.callTool('mhlb_remove_coupon', { confirm: true }));
+      expect(body.status).toBe('confirmation-required');
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      await harness.close();
+    }
+  });
+
+  it('refuses a replayed token with TOKEN_REUSED and does not write again', async () => {
+    const { harness, fetchSpy } = await harnessWithSpy();
+    try {
+      const args = { studentId: 5 };
+      const first = parseToolResult<PhaseOne>(await harness.callTool('mhlb_delete_student', args));
+      await harness.callTool('mhlb_delete_student', { ...args, confirmToken: first.confirmToken });
+      expect(fetchSpy.mock.calls.filter((c) => String(c[0]).includes('/parent/deleteChild'))).toHaveLength(1);
+
+      const replay = await harness.callTool('mhlb_delete_student', { ...args, confirmToken: first.confirmToken });
+      expect(replay.isError).toBe(true);
+      expect(parseToolResult<{ error: string }>(replay).error).toBe('TOKEN_REUSED');
+      expect(fetchSpy.mock.calls.filter((c) => String(c[0]).includes('/parent/deleteChild'))).toHaveLength(1);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  it('refuses a token when an argument changed between the phases (DRAFT_CHANGED)', async () => {
+    const { harness, fetchSpy } = await harnessWithSpy();
+    try {
+      const first = parseToolResult<PhaseOne>(
+        await harness.callTool('mhlb_checkout', { orderIds: [1], expectedTotal: 10 }),
+      );
+      const changed = await harness.callTool('mhlb_checkout', {
+        orderIds: [1],
+        expectedTotal: 10,
+        couponCode: 'ADDED-LATER',
+        confirmToken: first.confirmToken,
+      });
+      expect(changed.isError).toBe(true);
+      expect(parseToolResult<{ error: string }>(changed).error).toBe('DRAFT_CHANGED');
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      await harness.close();
+    }
+  });
+
+  it('writes when a client that can be prompted accepts', async () => {
+    const { harness, fetchSpy } = await harnessWithSpy({ ok: true }, {
+      elicitation: async () => ({ action: 'accept', content: { confirmed: true } }),
+    });
+    try {
+      const result = await harness.callTool('mhlb_apply_coupon', { code: 'SAVE10' });
+      expect(result.isError).toBeFalsy();
+      expect(fetchSpy.mock.calls.filter((c) => String(c[0]).includes('/parent/applyCoupon'))).toHaveLength(1);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  it('does not write when a client that can be prompted declines', async () => {
+    const { harness, fetchSpy } = await harnessWithSpy({ ok: true }, {
+      elicitation: async () => ({ action: 'decline' }),
+    });
+    try {
+      await harness.callTool('mhlb_apply_coupon', { code: 'SAVE10' });
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      await harness.close();
+    }
+  });
+
+  it('refuses writes on a client that cannot be prompted when MCP_CONFIRM_MODE=refuse', async () => {
+    process.env.MCP_CONFIRM_MODE = 'refuse';
+    const { harness, fetchSpy } = await harnessWithSpy();
+    try {
+      const body = parseToolResult<{ reason: string; dispatched: boolean }>(
+        await harness.callTool('mhlb_set_subscription_enabled', { enabled: true }),
+      );
+      expect(body.reason).toBe('confirmation-unsupported');
+      expect(body.dispatched).toBe(false);
+      expect(fetchSpy).not.toHaveBeenCalled();
     } finally {
       await harness.close();
     }
@@ -148,7 +269,7 @@ describe('checkout safety', () => {
   it('sends the payload shape the site sends, with explicit nulls', async () => {
     const { harness, fetchSpy } = await harnessWithSpy({ receiptId: 9 });
     try {
-      await harness.callTool('mhlb_checkout', { orderIds: [11, 12], expectedTotal: 42.5, confirm: true });
+      await callConfirmed(harness, 'mhlb_checkout', { orderIds: [11, 12], expectedTotal: 42.5 });
       const call = fetchSpy.mock.calls.find((c) => String(c[0]).includes('/payment/checkout'));
       const body = JSON.parse(String((call?.[1] as RequestInit).body)) as Record<string, unknown>;
       expect(body.orderIds).toEqual([11, 12]);
@@ -170,11 +291,10 @@ describe('checkout safety', () => {
     try {
       const key = 'fixed-key-1';
       for (let i = 0; i < 2; i += 1) {
-        await harness.callTool('mhlb_checkout', {
+        await callConfirmed(harness, 'mhlb_checkout', {
           orderIds: [11],
           expectedTotal: 1,
           idempotencyKey: key,
-          confirm: true,
         });
       }
       const sent = fetchSpy.mock.calls
@@ -192,7 +312,7 @@ describe('checkout safety', () => {
     const { harness } = await harnessWithSpy('receipt-12345');
     try {
       const body = parseToolResult<{ result: unknown; expectedTotal: number }>(
-        await harness.callTool('mhlb_checkout', { orderIds: [1], expectedTotal: 4, confirm: true }),
+        await callConfirmed(harness, 'mhlb_checkout', { orderIds: [1], expectedTotal: 4 }),
       );
       expect(body.result).toBe('receipt-12345');
       expect(body.expectedTotal).toBe(4);
@@ -208,7 +328,7 @@ describe('checkout safety', () => {
         result: { idempotencyKey: string; expectedTotal: number };
         idempotencyKey: string;
         expectedTotal: number;
-      }>(await harness.callTool('mhlb_checkout', { orderIds: [1], expectedTotal: 4, confirm: true }));
+      }>(await callConfirmed(harness, 'mhlb_checkout', { orderIds: [1], expectedTotal: 4 }));
 
       expect(body.result.idempotencyKey).toBe('SERVER-KEY');
       expect(body.result.expectedTotal).toBe(999);
@@ -242,7 +362,7 @@ describe('checkout safety', () => {
       for (const register of ALL_REGISTRARS) register(server, client);
     });
     try {
-      const result = await harness.callTool('mhlb_checkout', { orderIds: [1], expectedTotal: 4, confirm: true });
+      const result = await callConfirmed(harness, 'mhlb_checkout', { orderIds: [1], expectedTotal: 4 });
       expect(result.isError).toBe(true);
       const call = fetchSpy.mock.calls.find((c) => String(c[0]).includes('/payment/checkout'));
       const sentKey = String(JSON.parse(String((call?.[1] as RequestInit).body)).idempotencyKey);
@@ -256,10 +376,9 @@ describe('checkout safety', () => {
   it('refuses to pay a non-zero total with no orderIds', async () => {
     const { harness, fetchSpy } = await harnessWithSpy();
     try {
-      const result = await harness.callTool('mhlb_checkout', {
+      const result = await callConfirmed(harness, 'mhlb_checkout', {
         orderIds: [],
         expectedTotal: 25,
-        confirm: true,
       });
       expect(result.isError).toBe(true);
       expect(fetchSpy).not.toHaveBeenCalled();
@@ -268,14 +387,34 @@ describe('checkout safety', () => {
     }
   });
 
-  it('says in the dry run that only a saved card can be used', async () => {
+  it('says in the preview that only a saved card can be used', async () => {
     const { harness } = await harnessWithSpy();
     try {
-      const body = parseToolResult<{ notes: string[] }>(
+      const body = parseToolResult<PhaseOne>(
         await harness.callTool('mhlb_checkout', { orderIds: [1], expectedTotal: 5 }),
       );
-      expect(body.notes.join(' ')).toMatch(/already saved on the account/i);
-      expect(body.notes.join(' ')).toMatch(/Idempotency key/i);
+      expect(body.preview.notes.join(' ')).toMatch(/already saved on the account/i);
+      expect(body.preview.notes.join(' ')).toMatch(/Idempotency key/i);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  it('shows the expected total and the idempotency key that will be sent in the preview', async () => {
+    const { harness } = await harnessWithSpy();
+    try {
+      const withKey = parseToolResult<PhaseOne & { preview: { expectedTotal: number } }>(
+        await harness.callTool('mhlb_checkout', { orderIds: [1], expectedTotal: 7, idempotencyKey: 'k-1' }),
+      );
+      expect(withKey.preview.expectedTotal).toBe(7);
+      expect(withKey.preview.wouldSend.body).toMatchObject({ orderIds: [1], idempotencyKey: 'k-1' });
+
+      // No key given: one is generated at send time (it cannot be fixed in a
+      // preview without changing what the token binds), and the preview says so.
+      const noKey = parseToolResult<PhaseOne>(
+        await harness.callTool('mhlb_checkout', { orderIds: [1], expectedTotal: 7 }),
+      );
+      expect(noKey.preview.wouldSend.body).toMatchObject({ idempotencyKey: expect.stringMatching(/generated/i) });
     } finally {
       await harness.close();
     }
@@ -284,11 +423,10 @@ describe('checkout safety', () => {
   it('mhlb_delete_order sends the identifier payload, not the order model', async () => {
     const { harness, fetchSpy } = await harnessWithSpy();
     try {
-      await harness.callTool('mhlb_delete_order', {
+      await callConfirmed(harness, 'mhlb_delete_order', {
         orderId: 7,
         eventDate: '2026-09-14',
         studentId: 3,
-        confirm: true,
       });
       const call = fetchSpy.mock.calls.find((c) => String(c[0]).includes('/event/deleteOrder'));
       expect(JSON.parse(String((call?.[1] as RequestInit).body))).toEqual({
@@ -306,11 +444,10 @@ describe('checkout safety', () => {
   it('mhlb_unsubscribe_order defaults isSubscribed to true', async () => {
     const { harness, fetchSpy } = await harnessWithSpy();
     try {
-      await harness.callTool('mhlb_unsubscribe_order', {
+      await callConfirmed(harness, 'mhlb_unsubscribe_order', {
         orderId: 7,
         eventDate: '2026-09-14',
         studentId: 3,
-        confirm: true,
       });
       const call = fetchSpy.mock.calls.find((c) => String(c[0]).includes('/event/unsubcribeOrder'));
       expect(JSON.parse(String((call?.[1] as RequestInit).body))).toMatchObject({ isSubscribed: true });

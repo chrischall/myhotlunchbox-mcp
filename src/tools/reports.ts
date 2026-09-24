@@ -9,8 +9,8 @@ import { minifiedResult } from './_shared.js';
 /**
  * The `/parentReports/print*` endpoints are declared `responseType: 'blob'` in
  * the site's own client and stream a wkhtmltopdf-generated PDF. They generate a
- * document rather than changing account state, so they are reads and carry no
- * `confirm` — but they do write a local file, so the destination is
+ * document rather than changing account state, so they are reads and ask for no
+ * confirmation — but they do write a local file, so the destination is
  * configurable and never silently overwrites.
  */
 

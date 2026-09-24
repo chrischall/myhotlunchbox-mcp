@@ -73,16 +73,27 @@ returns its path, or the bytes inline with `inline: true`. Set
 `MYHOTLUNCHBOX_OUTPUT_DIR` to choose where they land (defaults to the working
 directory); existing files are never overwritten.
 
-## Writes are confirm-gated
+## Confirmations
 
-Every mutating tool takes `confirm`. Without `confirm: true` it makes **no**
-network call and returns a dry-run preview of exactly what it would send.
+Every mutating tool asks you to confirm before it sends anything. On a client
+that can show a confirmation prompt (Claude Code) you get the prompt, with the
+exact request the tool would send. On a client that cannot (claude.ai, Claude
+Desktop), the first call makes **no** network call: it returns a preview of
+exactly what it would send plus a `confirmToken`, and only a repeat call with
+the same arguments and that token goes through. A token is single-use, and
+changing any argument between the two calls is refused (`DRAFT_CHANGED`).
+
+| variable | default | |
+|---|---|---|
+| `MCP_CONFIRM_MODE` | `ask-user` | What a write does on a client that cannot show a confirmation prompt (claude.ai, Claude Desktop). `ask-user`: two steps — the first call does nothing and returns a preview plus a token, and the model must get your approval in chat before calling again with it. `auto`: the same two steps, but the model may use the token after reviewing the preview itself. `refuse`: writes are refused on such clients. A client that can show prompts (Claude Code) always gets the real prompt. An unrecognised value is treated as `refuse`. |
+| `MCP_CONFIRM_TTL_SECONDS` | `600` | How long a token stays valid. |
+| `MCP_CONFIRM_SECRET` | random per process | Signing key; set it only if tokens must survive a server restart. |
 
 `mhlb_checkout` charges a real payment method. The server prices the charge from
 `orderIds`, so nothing client-side can bind the amount — there is no total in the
 request to check against. `expectedTotal` is therefore **attribution, not a
-guard**: you state what you expected, and it is recorded in the dry run and in
-the result so an unexpected charge is traceable to the call that made it. What
+guard**: you state what you expected, and it is shown in the confirmation
+preview (and bound into its token) and returned in the result so an unexpected charge is traceable to the call that made it. What
 the tool does refuse outright is paying a non-zero total with no `orderIds`.
 
 ### Writes: shapes captured, acceptance unverified
@@ -90,7 +101,7 @@ the tool does refuse outright is paying a non-zero total with no `orderIds`.
 `npm run capture:writes` runs every mutating tool against a local proxy that
 forwards reads to the real service but answers writes itself, so the payloads
 are built from genuine server models and nothing happens upstream. It also
-proves all 13 refuse to send anything without `confirm: true`.
+proves all 13 send nothing until they are confirmed with a `confirmToken`.
 
 What that established, and corrected: `mhlb_delete_order` and
 `mhlb_unsubscribe_order` take `{orderId, eventDate, studentId, isRepeated,
@@ -99,7 +110,7 @@ isSubscribed}` — not the order model — and checkout takes
 
 **What is still unverified is whether the server accepts these bodies.** Shape
 is not acceptance; only a real write shows that, and none has been made. Inspect
-the dry-run preview before confirming, and re-read afterwards — a `200` is not
+the confirmation preview before approving it, and re-read afterwards — a `200` is not
 proof a write persisted.
 
 Two limits on `mhlb_checkout` specifically:
@@ -107,9 +118,11 @@ Two limits on `mhlb_checkout` specifically:
 - It can only pay with a card **already saved** on the account. Paying with a
   new card needs a Stripe token minted by Stripe.js in a browser, which no
   server-side client can produce.
-- It generates an idempotency key and returns it. If a checkout fails
-  ambiguously, retry with that same `idempotencyKey` rather than a fresh call —
-  that is what stops a retry becoming a second charge.
+- It generates an idempotency key (unless you pass one) and returns it with the
+  result and with any error. If a checkout fails ambiguously, retry with that
+  same `idempotencyKey` rather than a fresh call — that is what stops a retry
+  becoming a second charge. A key you pass yourself must be the same on both
+  confirmation calls.
 
 ## Ordering is read-modify-write
 
@@ -117,7 +130,7 @@ There is no "add item X" call. Fetch the model, edit it, send it back whole:
 
 1. `mhlb_get_menu` — what is orderable for a student on a date
 2. `mhlb_get_order_form` — the order model to fill in
-3. `mhlb_create_order` — send it back (with `confirm: true`)
+3. `mhlb_create_order` — send it back (and confirm the preview)
 4. `mhlb_init_checkout` → `mhlb_checkout` — price, then pay
 
 Fields omitted from the payload are **cleared**, not preserved.

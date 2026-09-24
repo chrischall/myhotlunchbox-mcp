@@ -1,18 +1,18 @@
 import { randomUUID } from 'node:crypto';
-import { McpToolError, toolAnnotations, PositiveInt, schemaConfirm } from '@chrischall/mcp-utils';
+import { McpToolError, toolAnnotations, PositiveInt, confirmTokenParam } from '@chrischall/mcp-utils';
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { MhlbClient } from '../client.js';
-import { UNVERIFIED, minifiedResult, preview } from './_shared.js';
+import { CONFIRMS, UNVERIFIED, confirmWrite, minifiedResult } from './_shared.js';
 
 /**
- * Checkout is the only pair of tools that moves money. Both are confirm-gated
- * like every other write.
+ * Checkout is the only pair of tools that moves money. Both ask for
+ * confirmation like every other write.
  *
  * There is deliberately no amount check. The server prices the charge from
  * `orderIds`; the request carries no total, so anything compared here would be
  * the caller's own input against itself. `expectedTotal` is attribution — it is
- * echoed in the dry run and returned with the result, so a surprising charge is
+ * shown in the confirmation preview (and bound into its token) and returned with the result, so a surprising charge is
  * traceable to the call that made it. The one real refusal is paying a non-zero
  * total with no `orderIds`.
  */
@@ -23,20 +23,25 @@ export function registerCheckoutTools(server: McpServer, client: MhlbClient): vo
       description:
         'Start checkout for the cart: returns the order summary, totals, taxes, applied credits and the ' +
         'available payment methods. This does NOT charge anything — it is the read step before mhlb_checkout.' +
-        UNVERIFIED,
+        CONFIRMS + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Initialise checkout', readOnly: false, openWorld: true, destructive: false }),
       inputSchema: z.object({
         ...CheckoutShape,
-        confirm: schemaConfirm,
+        confirmToken: confirmTokenParam,
       }),
     },
-    async ({ confirm, ...args }) => {
+    async ({ confirmToken, ...args }, ctx) => {
       const body = checkoutBody(args);
-      if (!confirm) {
-        return preview('Initialise checkout', { method: 'POST', path: '/payment/initCheckout', body }, [
-          'This step prices the cart and returns payment options. It does not charge a card.',
-        ]);
-      }
+      const gate = await confirmWrite(ctx, {
+        tool: 'mhlb_init_checkout',
+        action: 'checkout.init',
+        label: 'Initialise checkout',
+        target: args.orderIds.join(','),
+        request: { method: 'POST', path: '/payment/initCheckout', body },
+        confirmToken,
+        notes: ['This step prices the cart and returns payment options. It does not charge a card.'],
+      });
+      if (gate) return gate;
       return minifiedResult(await client.write('/payment/initCheckout', body));
     },
   );
@@ -48,7 +53,7 @@ export function registerCheckoutTools(server: McpServer, client: MhlbClient): vo
         'PAY for the lunches in the cart. This charges a real payment method on the My Hot Lunchbox account. ' +
         'Run mhlb_init_checkout first, read the total it returns, and pass that figure as expectedTotal. ' +
         'Only a card ALREADY SAVED on the account can be used: paying with a new card needs a Stripe token ' +
-        'minted by Stripe.js in a browser, which no server-side client can produce.' + UNVERIFIED,
+        'minted by Stripe.js in a browser, which no server-side client can produce.' + CONFIRMS + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Pay for cart', readOnly: false, openWorld: true, destructive: true }),
       inputSchema: z.object({
         ...CheckoutShape,
@@ -63,7 +68,8 @@ export function registerCheckoutTools(server: McpServer, client: MhlbClient): vo
           .optional()
           .describe(
             'Reuse the SAME key when retrying a checkout that may already have gone through — that is what ' +
-            'stops a retry becoming a second charge. Generated automatically when omitted.',
+            'stops a retry becoming a second charge. Generated automatically when omitted. Pass the same value ' +
+            'on both confirmation calls.',
           ),
         expectedTotal: z
           .number()
@@ -71,31 +77,50 @@ export function registerCheckoutTools(server: McpServer, client: MhlbClient): vo
           .describe(
             'The amount you expect to be charged, as mhlb_init_checkout reported it. The server prices the ' +
             'charge from orderIds, so no client-side check can bind the amount — this is recorded in the ' +
-            'dry run and in the result so an unexpected charge is at least attributable.',
+            'confirmation preview and in the result so an unexpected charge is at least attributable.',
           ),
-        confirm: schemaConfirm,
+        confirmToken: confirmTokenParam,
       }),
     },
-    async ({ availableCredits, idempotencyKey, expectedTotal, confirm, ...args }) => {
-      // The site generates this client-side as `${randomUUID()}-${Date.now()}`
-      // (form-mixin's getKey) and holds it in session storage across retries.
-      const key = idempotencyKey ?? `${randomUUID()}-${Date.now()}`;
-      const body = {
+    async ({ availableCredits, idempotencyKey, expectedTotal, confirmToken, ...args }, ctx) => {
+      const baseBody = {
         ...checkoutBody(args),
         ...(availableCredits !== undefined ? { availableCredits } : {}),
-        idempotencyKey: key,
       };
 
-      if (!confirm) {
-        return preview('Pay for cart', { method: 'POST', path: '/payment/checkout', body }, [
+      // A generated key cannot appear in the preview: it would differ between
+      // the preview call and the confirmed one, so the token could never match.
+      // The preview names a caller-supplied key, or says one will be generated.
+      const gate = await confirmWrite(ctx, {
+        tool: 'mhlb_checkout',
+        action: 'checkout.pay',
+        label: 'Pay for cart',
+        target: args.orderIds.join(','),
+        request: {
+          method: 'POST',
+          path: '/payment/checkout',
+          body: { ...baseBody, idempotencyKey: idempotencyKey ?? GENERATED_KEY },
+        },
+        extra: { expectedTotal },
+        confirmToken,
+        notes: [
           `This CHARGES a payment method. Expected total: ${expectedTotal}.`,
           'No stripeToken is sent, so this can only pay with a card already saved on the account. ' +
             'Paying with a NEW card needs a Stripe token minted by Stripe.js in a browser, which no ' +
             'server-side client can produce — do that on the site.',
-          `Idempotency key for this attempt: ${key}. Pass it as idempotencyKey on the confirmed call, and ` +
-            'reuse it if you retry — the confirmed call otherwise generates a fresh one.',
-        ]);
-      }
+          idempotencyKey !== undefined
+            ? `Idempotency key for this attempt: ${idempotencyKey}. Reuse it if you retry.`
+            : 'Idempotency key: none given, so one is generated when the payment is sent and returned with the ' +
+              'result (and with any error). Reuse that key if you retry — a fresh one lets the server take a ' +
+              'second charge.',
+        ],
+      });
+      if (gate) return gate;
+
+      // The site generates this client-side as `${randomUUID()}-${Date.now()}`
+      // (form-mixin's getKey) and holds it in session storage across retries.
+      const key = idempotencyKey ?? `${randomUUID()}-${Date.now()}`;
+      const body = { ...baseBody, idempotencyKey: key };
 
       if (expectedTotal > 0 && args.orderIds.length === 0) {
         throw new McpToolError('Refusing to pay: no orderIds were given.', {
@@ -140,6 +165,9 @@ export function registerCheckoutTools(server: McpServer, client: MhlbClient): vo
  * card already saved on the account it is left undefined, which is the only
  * case a server-side client can serve.
  */
+/** Stands in for an idempotency key that will be generated at send time. */
+const GENERATED_KEY = '(generated when the payment is sent)';
+
 const CheckoutShape = {
   orderIds: z
     .array(PositiveInt)

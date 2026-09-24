@@ -98,6 +98,15 @@ retry reuses it.
 
 `captured-writes.json` is gitignored — it holds real student and order ids.
 
+## Writes are confirmed through `confirmWrite`
+
+Every mutating tool takes `confirmToken: confirmTokenParam`, calls
+`confirmWrite(ctx, …)` from `src/tools/_shared.ts` before its request and
+returns the gate result when there is one, and appends `CONFIRMS` to its
+description. The `request` passed in must be exactly what the write sends — it
+is shown in the preview and hashed into the token, so anything generated per
+call (like checkout's idempotency key) stays out of it until after the gate.
+
 ## Writes are unverified
 
 Paths and verbs came from the compiled client and are reliable; request bodies

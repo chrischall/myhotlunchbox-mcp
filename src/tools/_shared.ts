@@ -1,26 +1,69 @@
-import { minifiedResult } from '@chrischall/mcp-utils';
-import type { CallToolResult } from '@modelcontextprotocol/server';
+import { confirmationFromEnv, minifiedResult, requireConfirmationWithFallback } from '@chrischall/mcp-utils';
+import type { CallToolResult, InputRequiredResult, ServerContext } from '@modelcontextprotocol/server';
+
+/** The request a write will send — shown in the preview and hashed into the token. */
+export interface WriteRequest {
+  method: 'POST';
+  path: string;
+  query?: Record<string, unknown>;
+  body?: unknown;
+}
 
 /**
- * Standard dry-run envelope for a confirm-gated write.
- *
- * A mutating tool called without `confirm: true` makes **no** network call and
- * returns exactly what it would have sent, so the caller can inspect it first.
+ * Sentence every write tool's description ends with, so the confirmation flow
+ * is stated identically everywhere.
  */
-export function preview(
-  action: string,
-  request: { method: 'POST'; path: string; query?: Record<string, unknown>; body?: unknown },
-  notes?: string[],
-): CallToolResult {
-  return minifiedResult({
-    dryRun: true,
-    action,
-    wouldSend: request,
-    notes: [
-      'No request was made. Pass confirm: true to execute.',
-      ...(notes ?? []),
-    ],
-  });
+export const CONFIRMS =
+  ' Asks the user to confirm first: a confirmation prompt where the client supports one; otherwise the first ' +
+  'call returns a preview and a confirmToken, and only a repeat call with that token proceeds (see MCP_CONFIRM_MODE).';
+
+/**
+ * Confirmation gate for a write.
+ *
+ * A client that can show a prompt gets one. Elsewhere the first call makes
+ * **no** network call and returns a preview — the exact request it would send,
+ * plus notes — with a `confirmToken`; only a repeat call carrying that token,
+ * with arguments that still produce the same request, proceeds. `undefined`
+ * means proceed; anything else is the result to return unchanged.
+ */
+export function confirmWrite(
+  ctx: ServerContext,
+  opts: {
+    tool: string;
+    /** `<service>.<verb>`, e.g. `order.delete`. */
+    action: string;
+    /** Human label for the preview, e.g. "Delete order". */
+    label: string;
+    /** The primary id acted on, or '' if none. */
+    target: string;
+    request: WriteRequest;
+    confirmToken: string | undefined;
+    notes?: string[];
+    /** Extra preview fields that are bound into the token alongside the request. */
+    extra?: Record<string, unknown>;
+  },
+): Promise<CallToolResult | InputRequiredResult | undefined> {
+  const preview = {
+    action: opts.label,
+    wouldSend: opts.request,
+    ...opts.extra,
+    notes: ['Nothing has been sent yet.', ...(opts.notes ?? [])],
+  };
+  return requireConfirmationWithFallback(
+    ctx,
+    confirmationFromEnv({
+      action: opts.action,
+      message: `Review and confirm: ${opts.label}`,
+      details: preview,
+      tool: opts.tool,
+      confirmToken: opts.confirmToken,
+      subject: () => ({
+        target: opts.target,
+        payload: { request: opts.request, ...opts.extra },
+        preview,
+      }),
+    }),
+  );
 }
 
 // `minifiedResult` only. This seam re-exported both for a while, and every
@@ -37,4 +80,4 @@ export { minifiedResult };
  * them all when one is verified.
  */
 export const UNVERIFIED =
-  ' NOTE: this write is UNVERIFIED — its request shape was derived from the web app’s compiled API client but has not been exercised against a live account. Inspect the dry-run preview before confirming.';
+  ' NOTE: this write is UNVERIFIED — its request shape was derived from the web app’s compiled API client but has not been exercised against a live account. Inspect the confirmation preview before approving it.';

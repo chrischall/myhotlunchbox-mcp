@@ -1,8 +1,8 @@
-import { toolAnnotations, PositiveInt, schemaConfirm } from '@chrischall/mcp-utils';
+import { toolAnnotations, PositiveInt, confirmTokenParam } from '@chrischall/mcp-utils';
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { MhlbClient } from '../client.js';
-import { UNVERIFIED, minifiedResult, preview } from './_shared.js';
+import { CONFIRMS, UNVERIFIED, confirmWrite, minifiedResult } from './_shared.js';
 
 /** One row of `/parent/childrenInfo`. */
 export interface ChildInfo {
@@ -68,12 +68,20 @@ export function registerStudentTools(server: McpServer, client: MhlbClient): voi
     {
       description:
         'Add a student to the account. Call mhlb_new_student_form first and send that model back with the ' +
-        'fields filled in.' + UNVERIFIED,
+        'fields filled in.' + CONFIRMS + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Create student', readOnly: false, openWorld: true, destructive: false }),
-      inputSchema: z.object({ student: StudentModel, confirm: schemaConfirm }),
+      inputSchema: z.object({ student: StudentModel, confirmToken: confirmTokenParam }),
     },
-    async ({ student, confirm }) => {
-      if (!confirm) return preview('Create student', { method: 'POST', path: '/parent/createChild', body: student });
+    async ({ student, confirmToken }, ctx) => {
+      const gate = await confirmWrite(ctx, {
+        tool: 'mhlb_create_student',
+        action: 'student.create',
+        label: 'Create student',
+        target: '',
+        request: { method: 'POST', path: '/parent/createChild', body: student },
+        confirmToken,
+      });
+      if (gate) return gate;
       return minifiedResult(await client.write('/parent/createChild', student));
     },
   );
@@ -83,16 +91,21 @@ export function registerStudentTools(server: McpServer, client: MhlbClient): voi
     {
       description:
         'Update a student profile. Call mhlb_get_student_form first and send that model back with your edits — ' +
-        'the endpoint replaces the whole record, so omitted fields are lost.' + UNVERIFIED,
+        'the endpoint replaces the whole record, so omitted fields are lost.' + CONFIRMS + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Update student', readOnly: false, openWorld: true, destructive: false }),
-      inputSchema: z.object({ student: StudentModel, confirm: schemaConfirm }),
+      inputSchema: z.object({ student: StudentModel, confirmToken: confirmTokenParam }),
     },
-    async ({ student, confirm }) => {
-      if (!confirm) {
-        return preview('Update student', { method: 'POST', path: '/parent/editChild', body: student }, [
-          'This is a whole-record replace: any field missing from `student` is cleared, not preserved.',
-        ]);
-      }
+    async ({ student, confirmToken }, ctx) => {
+      const gate = await confirmWrite(ctx, {
+        tool: 'mhlb_update_student',
+        action: 'student.update',
+        label: 'Update student',
+        target: '',
+        request: { method: 'POST', path: '/parent/editChild', body: student },
+        confirmToken,
+        notes: ['This is a whole-record replace: any field missing from `student` is cleared, not preserved.'],
+      });
+      if (gate) return gate;
       return minifiedResult(await client.write('/parent/editChild', student));
     },
   );
@@ -102,21 +115,24 @@ export function registerStudentTools(server: McpServer, client: MhlbClient): voi
     {
       description:
         'Remove a student from the account. Irreversible from this API — their order history goes with them.' +
-        UNVERIFIED,
+        CONFIRMS + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Delete student', readOnly: false, openWorld: true, destructive: true }),
       inputSchema: z.object({
         studentId: PositiveInt.describe('Student id from mhlb_list_students.'),
-        confirm: schemaConfirm,
+        confirmToken: confirmTokenParam,
       }),
     },
-    async ({ studentId, confirm }) => {
-      if (!confirm) {
-        return preview(
-          'Delete student',
-          { method: 'POST', path: '/parent/deleteChild', query: { id: studentId } },
-          ['Deleting a student is not reversible through this API.'],
-        );
-      }
+    async ({ studentId, confirmToken }, ctx) => {
+      const gate = await confirmWrite(ctx, {
+        tool: 'mhlb_delete_student',
+        action: 'student.delete',
+        label: 'Delete student',
+        target: String(studentId),
+        request: { method: 'POST', path: '/parent/deleteChild', query: { id: studentId } },
+        confirmToken,
+        notes: ['Deleting a student is not reversible through this API.'],
+      });
+      if (gate) return gate;
       return minifiedResult(await client.write('/parent/deleteChild', undefined, { id: studentId }));
     },
   );

@@ -1,8 +1,8 @@
-import { toolAnnotations, PositiveInt, IsoDate, schemaConfirm } from '@chrischall/mcp-utils';
+import { toolAnnotations, PositiveInt, IsoDate, confirmTokenParam } from '@chrischall/mcp-utils';
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { MhlbClient } from '../client.js';
-import { UNVERIFIED, minifiedResult, preview } from './_shared.js';
+import { CONFIRMS, UNVERIFIED, confirmWrite, minifiedResult } from './_shared.js';
 
 /**
  * Ordering is read-modify-write throughout: `GET /event/createOrder` and
@@ -158,16 +158,21 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
     {
       description:
         'Place a lunch order into the cart. Call mhlb_get_order_form first and send that model back with ' +
-        'quantities set. This adds to the cart — it does not pay; use mhlb_checkout for that.' + UNVERIFIED,
+        'quantities set. This adds to the cart — it does not pay; use mhlb_checkout for that.' + CONFIRMS + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Create order', readOnly: false, openWorld: true, destructive: false }),
-      inputSchema: z.object({ order: OrderModel, confirm: schemaConfirm }),
+      inputSchema: z.object({ order: OrderModel, confirmToken: confirmTokenParam }),
     },
-    async ({ order, confirm }) => {
-      if (!confirm) {
-        return preview('Create order', { method: 'POST', path: '/event/createOrder', body: order }, [
-          'This adds the lunch to the cart. Payment is a separate step (mhlb_checkout).',
-        ]);
-      }
+    async ({ order, confirmToken }, ctx) => {
+      const gate = await confirmWrite(ctx, {
+        tool: 'mhlb_create_order',
+        action: 'order.create',
+        label: 'Create order',
+        target: '',
+        request: { method: 'POST', path: '/event/createOrder', body: order },
+        confirmToken,
+        notes: ['This adds the lunch to the cart. Payment is a separate step (mhlb_checkout).'],
+      });
+      if (gate) return gate;
       return minifiedResult(await client.write('/event/createOrder', order));
     },
   );
@@ -177,16 +182,21 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
     {
       description:
         'Change an existing lunch order. Call mhlb_get_order first and send that model back with your edits — ' +
-        'the endpoint replaces the whole order.' + UNVERIFIED,
+        'the endpoint replaces the whole order.' + CONFIRMS + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Update order', readOnly: false, openWorld: true, destructive: false }),
-      inputSchema: z.object({ order: OrderModel, confirm: schemaConfirm }),
+      inputSchema: z.object({ order: OrderModel, confirmToken: confirmTokenParam }),
     },
-    async ({ order, confirm }) => {
-      if (!confirm) {
-        return preview('Update order', { method: 'POST', path: '/event/editOrder', body: order }, [
-          'This is a whole-order replace: items missing from `order` are removed, not preserved.',
-        ]);
-      }
+    async ({ order, confirmToken }, ctx) => {
+      const gate = await confirmWrite(ctx, {
+        tool: 'mhlb_update_order',
+        action: 'order.update',
+        label: 'Update order',
+        target: '',
+        request: { method: 'POST', path: '/event/editOrder', body: order },
+        confirmToken,
+        notes: ['This is a whole-order replace: items missing from `order` are removed, not preserved.'],
+      });
+      if (gate) return gate;
       return minifiedResult(await client.write('/event/editOrder', order));
     },
   );
@@ -196,18 +206,25 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
     {
       description:
         'Cancel a lunch order. If it was already paid for, the refund behaviour is whatever My Hot Lunchbox ' +
-        'applies — this tool does not control it.' + UNVERIFIED,
+        'applies — this tool does not control it.' + CONFIRMS + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Delete order', readOnly: false, openWorld: true, destructive: true }),
-      inputSchema: z.object({ ...OrderRefShape, confirm: schemaConfirm }),
+      inputSchema: z.object({ ...OrderRefShape, confirmToken: confirmTokenParam }),
     },
-    async ({ confirm, ...ref }) => {
+    async ({ confirmToken, ...ref }, ctx) => {
       const body = orderRefBody(ref);
-      if (!confirm) {
-        return preview('Delete order', { method: 'POST', path: '/event/deleteOrder', body }, [
+      const gate = await confirmWrite(ctx, {
+        tool: 'mhlb_delete_order',
+        action: 'order.delete',
+        label: 'Delete order',
+        target: String(ref.orderId),
+        request: { method: 'POST', path: '/event/deleteOrder', body },
+        confirmToken,
+        notes: [
           'Cancelling a paid order may or may not refund it — verify on the site afterwards.',
           'isRepeated: true removes the whole recurring series, not just this date.',
-        ]);
-      }
+        ],
+      });
+      if (gate) return gate;
       return minifiedResult(await client.write('/event/deleteOrder', body));
     },
   );

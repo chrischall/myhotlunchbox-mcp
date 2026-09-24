@@ -13,9 +13,9 @@
 // is a missing capture, never an accidental mutation.
 //
 // What this proves: the path, query and body each tool constructs, that the
-// read-modify-write pairs round-trip a real model, and that confirm gating
-// holds. What it does NOT prove: that the server accepts the body. Only a real
-// write shows that.
+// read-modify-write pairs round-trip a real model, and that the confirmation
+// gate holds (a first call without a confirmToken sends nothing). What it does
+// NOT prove: that the server accepts the body. Only a real write shows that.
 import { createServer } from 'node:http';
 import { config } from 'dotenv';
 import { writeFileSync } from 'node:fs';
@@ -111,6 +111,13 @@ const harness = await createTestHarness((server) => {
 });
 
 const call = (name, args) => harness.callTool(name, args);
+// The harness declares no elicitation, so writes take the token flow: the first
+// call returns a preview and a confirmToken, the repeat with it proceeds.
+const confirmed = async (name, args) => {
+  const first = await call(name, args);
+  const token = first?.isError ? undefined : parseToolResult(first)?.confirmToken;
+  return token ? call(name, { ...args, confirmToken: token }) : first;
+};
 const results = [];
 const run = async (label, fn) => {
   const before = captured.length;
@@ -145,7 +152,7 @@ function iso(offsetDays) {
   return d.toISOString().slice(0, 10);
 }
 
-console.log('== confirm gating: every write must send NOTHING without confirm ==');
+console.log('== confirmation gating: every write must send NOTHING without a confirmToken ==');
 const GATED = [
   ['mhlb_create_student', { student: { firstName: 'X' } }],
   ['mhlb_update_student', { student: { id: studentId } }],
@@ -167,48 +174,48 @@ for (const [name, args] of GATED) {
   await call(name, args);
   if (captured.length !== before) {
     leaked += 1;
-    console.log(`  LEAK ${name} sent a request WITHOUT confirm`);
+    console.log(`  LEAK ${name} sent a request WITHOUT a confirmToken`);
   }
 }
-console.log(leaked === 0 ? `  OK   all ${GATED.length} refused to send without confirm\n` : `  ${leaked} LEAKED\n`);
+console.log(leaked === 0 ? `  OK   all ${GATED.length} refused to send without a confirmToken\n` : `  ${leaked} LEAKED\n`);
 
-console.log('== captured write shapes (confirm: true, nothing forwarded) ==');
+console.log('== captured write shapes (preview, then confirmToken; nothing forwarded) ==');
 if (studentId) {
   const form = parseToolResult(await call('mhlb_get_student_form', { studentId }));
   await run('mhlb_update_student (real model echoed back)', () =>
-    call('mhlb_update_student', { student: form, confirm: true }));
+    confirmed('mhlb_update_student', { student: form }));
   const blank = parseToolResult(await call('mhlb_new_student_form'));
   await run('mhlb_create_student (real blank model)', () =>
-    call('mhlb_create_student', { student: { ...blank, firstName: 'Proxy Test' }, confirm: true }));
-  await run('mhlb_delete_student', () => call('mhlb_delete_student', { studentId, confirm: true }));
+    confirmed('mhlb_create_student', { student: { ...blank, firstName: 'Proxy Test' } }));
+  await run('mhlb_delete_student', () => confirmed('mhlb_delete_student', { studentId }));
 }
 if (anyEvent) {
   const orderForm = parseToolResult(
     await call('mhlb_get_order_form', { eventId: anyEvent.id, studentId: anyEvent.studentId }),
   );
   await run('mhlb_create_order (real order form)', () =>
-    call('mhlb_create_order', { order: orderForm, confirm: true }));
+    confirmed('mhlb_create_order', { order: orderForm }));
 }
 if (ordered) {
   const existing = parseToolResult(await call('mhlb_get_order', { orderId: ordered.orderId }));
   await run('mhlb_update_order (real existing order)', () =>
-    call('mhlb_update_order', { order: existing, confirm: true }));
+    confirmed('mhlb_update_order', { order: existing }));
   const ref = { orderId: ordered.orderId, eventDate: String(ordered.start).slice(0, 10), studentId: ordered.studentId };
-  await run('mhlb_delete_order', () => call('mhlb_delete_order', { ...ref, confirm: true }));
-  await run('mhlb_unsubscribe_order', () => call('mhlb_unsubscribe_order', { ...ref, confirm: true }));
+  await run('mhlb_delete_order', () => confirmed('mhlb_delete_order', { ...ref }));
+  await run('mhlb_unsubscribe_order', () => confirmed('mhlb_unsubscribe_order', { ...ref }));
 }
 await run('mhlb_set_subscription_enabled', () =>
-  call('mhlb_set_subscription_enabled', { enabled: false, confirm: true }));
-await run('mhlb_apply_gift_card', () => call('mhlb_apply_gift_card', { code: 'PROXY-TEST', confirm: true }));
-await run('mhlb_apply_coupon', () => call('mhlb_apply_coupon', { code: 'PROXY-TEST', confirm: true }));
-await run('mhlb_remove_coupon', () => call('mhlb_remove_coupon', { confirm: true }));
+  confirmed('mhlb_set_subscription_enabled', { enabled: false }));
+await run('mhlb_apply_gift_card', () => confirmed('mhlb_apply_gift_card', { code: 'PROXY-TEST' }));
+await run('mhlb_apply_coupon', () => confirmed('mhlb_apply_coupon', { code: 'PROXY-TEST' }));
+await run('mhlb_remove_coupon', () => confirmed('mhlb_remove_coupon', {}));
 const cartOrderIds = (parseToolResult(await call('mhlb_get_cart')) ?? [])
   .map((row) => row?.orderId)
   .filter((id) => typeof id === 'number');
 await run('mhlb_init_checkout', () =>
-  call('mhlb_init_checkout', { orderIds: cartOrderIds.length ? cartOrderIds : [1], confirm: true }));
+  confirmed('mhlb_init_checkout', { orderIds: cartOrderIds.length ? cartOrderIds : [1] }));
 await run('mhlb_checkout', () =>
-  call('mhlb_checkout', { orderIds: cartOrderIds.length ? cartOrderIds : [1], expectedTotal: 0, confirm: true }));
+  confirmed('mhlb_checkout', { orderIds: cartOrderIds.length ? cartOrderIds : [1], expectedTotal: 0 }));
 
 await harness.close();
 await new Promise((r) => proxy.close(r));
