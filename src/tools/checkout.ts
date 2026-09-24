@@ -154,6 +154,9 @@ export function registerCheckoutTools(server: McpServer, client: MhlbClient): vo
   );
 }
 
+/** Stands in for an idempotency key that will be generated at send time. */
+const GENERATED_KEY = '(generated when the payment is sent)';
+
 /**
  * The checkout payload the site actually sends, captured from its own
  * `checkout` route chunk:
@@ -165,9 +168,6 @@ export function registerCheckoutTools(server: McpServer, client: MhlbClient): vo
  * card already saved on the account it is left undefined, which is the only
  * case a server-side client can serve.
  */
-/** Stands in for an idempotency key that will be generated at send time. */
-const GENERATED_KEY = '(generated when the payment is sent)';
-
 const CheckoutShape = {
   orderIds: z
     .array(PositiveInt)
