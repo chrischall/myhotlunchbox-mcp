@@ -1,8 +1,8 @@
-import { toolAnnotations, PositiveInt, NonEmptyString, schemaConfirm } from '@chrischall/mcp-utils';
+import { toolAnnotations, PositiveInt, NonEmptyString, confirmTokenParam } from '@chrischall/mcp-utils';
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { MhlbClient } from '../client.js';
-import { UNVERIFIED, minifiedResult, preview } from './_shared.js';
+import { CONFIRMS, UNVERIFIED, confirmWrite, minifiedResult } from './_shared.js';
 import { OrderRefShape, orderRefBody } from './orders.js';
 
 export function registerBillingTools(server: McpServer, client: MhlbClient): void {
@@ -57,21 +57,24 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
     {
       description:
         'Turn recurring lunch subscriptions on or off for the account. Turning it ON means future lunches are ' +
-        'ordered and charged automatically.' + UNVERIFIED,
+        'ordered and charged automatically.' + CONFIRMS + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Enable/disable subscriptions', readOnly: false, openWorld: true, destructive: true }),
       inputSchema: z.object({
         enabled: z.boolean().describe('true to enable recurring subscriptions, false to disable.'),
-        confirm: schemaConfirm,
+        confirmToken: confirmTokenParam,
       }),
     },
-    async ({ enabled, confirm }) => {
-      if (!confirm) {
-        return preview(
-          `${enabled ? 'Enable' : 'Disable'} subscriptions`,
-          { method: 'POST', path: '/parent/changeSubscriptionStatus', query: { isEnableSubscription: enabled } },
-          enabled ? ['Enabling means future lunches are ordered and charged automatically.'] : [],
-        );
-      }
+    async ({ enabled, confirmToken }, ctx) => {
+      const gate = await confirmWrite(ctx, {
+        tool: 'mhlb_set_subscription_enabled',
+        action: 'subscription.set_enabled',
+        label: `${enabled ? 'Enable' : 'Disable'} subscriptions`,
+        target: '',
+        request: { method: 'POST', path: '/parent/changeSubscriptionStatus', query: { isEnableSubscription: enabled } },
+        confirmToken,
+        notes: enabled ? ['Enabling means future lunches are ordered and charged automatically.'] : [],
+      });
+      if (gate) return gate;
       return minifiedResult(
         await client.write('/parent/changeSubscriptionStatus', undefined, { isEnableSubscription: enabled }),
       );
@@ -81,20 +84,25 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
   server.registerTool(
     'mhlb_unsubscribe_order',
     {
-      description: 'Stop a recurring subscription for a specific lunch order.' + UNVERIFIED,
+      description: 'Stop a recurring subscription for a specific lunch order.' + CONFIRMS + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Unsubscribe an order', readOnly: false, openWorld: true, destructive: true }),
       // Same identifier payload as mhlb_delete_order — the site's order-mixin
       // routes to whichever endpoint by `isSubscribed`, with one body shape.
-      inputSchema: z.object({ ...OrderRefShape, confirm: schemaConfirm }),
+      inputSchema: z.object({ ...OrderRefShape, confirmToken: confirmTokenParam }),
     },
     // The upstream route really is spelled `unsubcribeOrder`.
-    async ({ confirm, ...ref }) => {
+    async ({ confirmToken, ...ref }, ctx) => {
       const body = orderRefBody({ ...ref, isSubscribed: ref.isSubscribed ?? true });
-      if (!confirm) {
-        return preview('Unsubscribe order', { method: 'POST', path: '/event/unsubcribeOrder', body }, [
-          'isRepeated: true stops the whole recurring series, not just this date.',
-        ]);
-      }
+      const gate = await confirmWrite(ctx, {
+        tool: 'mhlb_unsubscribe_order',
+        action: 'order.unsubscribe',
+        label: 'Unsubscribe order',
+        target: String(ref.orderId),
+        request: { method: 'POST', path: '/event/unsubcribeOrder', body },
+        confirmToken,
+        notes: ['isRepeated: true stops the whole recurring series, not just this date.'],
+      });
+      if (gate) return gate;
       return minifiedResult(await client.write('/event/unsubcribeOrder', body));
     },
   );
@@ -112,14 +120,20 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
   server.registerTool(
     'mhlb_apply_gift_card',
     {
-      description: 'Redeem a gift card code onto the account balance.' + UNVERIFIED,
+      description: 'Redeem a gift card code onto the account balance.' + CONFIRMS + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Apply gift card', readOnly: false, openWorld: true, destructive: true }),
-      inputSchema: z.object({ code: NonEmptyString.describe('Gift card code.'), confirm: schemaConfirm }),
+      inputSchema: z.object({ code: NonEmptyString.describe('Gift card code.'), confirmToken: confirmTokenParam }),
     },
-    async ({ code, confirm }) => {
-      if (!confirm) {
-        return preview('Apply gift card', { method: 'POST', path: '/parent/applyGiftCard', query: { giftCardCode: code } });
-      }
+    async ({ code, confirmToken }, ctx) => {
+      const gate = await confirmWrite(ctx, {
+        tool: 'mhlb_apply_gift_card',
+        action: 'gift_card.apply',
+        label: 'Apply gift card',
+        target: code,
+        request: { method: 'POST', path: '/parent/applyGiftCard', query: { giftCardCode: code } },
+        confirmToken,
+      });
+      if (gate) return gate;
       return minifiedResult(await client.write('/parent/applyGiftCard', undefined, { giftCardCode: code }));
     },
   );
@@ -137,14 +151,20 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
   server.registerTool(
     'mhlb_apply_coupon',
     {
-      description: 'Apply a coupon code to the account.' + UNVERIFIED,
+      description: 'Apply a coupon code to the account.' + CONFIRMS + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Apply coupon', readOnly: false, openWorld: true, destructive: false }),
-      inputSchema: z.object({ code: NonEmptyString.describe('Coupon code.'), confirm: schemaConfirm }),
+      inputSchema: z.object({ code: NonEmptyString.describe('Coupon code.'), confirmToken: confirmTokenParam }),
     },
-    async ({ code, confirm }) => {
-      if (!confirm) {
-        return preview('Apply coupon', { method: 'POST', path: '/parent/applyCoupon', query: { couponCode: code } });
-      }
+    async ({ code, confirmToken }, ctx) => {
+      const gate = await confirmWrite(ctx, {
+        tool: 'mhlb_apply_coupon',
+        action: 'coupon.apply',
+        label: 'Apply coupon',
+        target: code,
+        request: { method: 'POST', path: '/parent/applyCoupon', query: { couponCode: code } },
+        confirmToken,
+      });
+      if (gate) return gate;
       return minifiedResult(await client.write('/parent/applyCoupon', undefined, { couponCode: code }));
     },
   );
@@ -152,12 +172,20 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
   server.registerTool(
     'mhlb_remove_coupon',
     {
-      description: 'Remove the coupon currently applied to the account.' + UNVERIFIED,
+      description: 'Remove the coupon currently applied to the account.' + CONFIRMS + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Remove coupon', readOnly: false, openWorld: true, destructive: false }),
-      inputSchema: z.object({ confirm: schemaConfirm }),
+      inputSchema: z.object({ confirmToken: confirmTokenParam }),
     },
-    async ({ confirm }) => {
-      if (!confirm) return preview('Remove coupon', { method: 'POST', path: '/parent/removeCoupon' });
+    async ({ confirmToken }, ctx) => {
+      const gate = await confirmWrite(ctx, {
+        tool: 'mhlb_remove_coupon',
+        action: 'coupon.remove',
+        label: 'Remove coupon',
+        target: '',
+        request: { method: 'POST', path: '/parent/removeCoupon' },
+        confirmToken,
+      });
+      if (gate) return gate;
       return minifiedResult(await client.write('/parent/removeCoupon'));
     },
   );

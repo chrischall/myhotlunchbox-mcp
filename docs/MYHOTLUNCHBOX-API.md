@@ -180,7 +180,7 @@ every model a write echoes back is genuine server output, and writes are
 answered locally and recorded. The forwarding rule is **default-deny on POST** —
 only the read-POSTs in `READ_POSTS` are relayed — so a write endpoint added
 later and not listed is blocked rather than forwarded. It also proves all 13
-mutating tools send **nothing** without `confirm: true`.
+mutating tools send **nothing** until confirmed with a `confirmToken`.
 
 That capture, checked against the site's own compiled call sites, corrected four
 payloads that had been guesses:
@@ -200,17 +200,18 @@ Two consequences worth stating plainly:
   new card has to be added on the site.
 - **`idempotencyKey` is client-generated** — `${crypto.randomUUID()}-${Date.now()}`
   in the site's `form-mixin`, held in session storage across retries. The tool
-  generates one and returns it, and accepts one back, so a retry after an
-  ambiguous failure is not a second charge.
+  generates one at send time and returns it, and accepts one back, so a retry
+  after an ambiguous failure is not a second charge.
 
 Order status enum for `printOrders` and the cart: `Pending: 0, Paid: 1, Credited: 2`.
 
 **STILL UNVERIFIED** — that the server *accepts* any of these bodies. Shape is
 not acceptance: only a real write shows that, and none has been made.
 
-Every write tool carries the `UNVERIFIED` marker in its description and refuses
-to act without `confirm: true`, returning a dry-run preview of exactly what it
-would send.
+Every write tool carries the `UNVERIFIED` marker in its description and asks for
+confirmation before acting: a prompt where the client supports one, otherwise a
+first call that sends nothing and returns a preview of exactly what it would
+send plus a single-use `confirmToken` (see `MCP_CONFIRM_MODE` in the README).
 
 To flip a write to verified, exercise it, then update *all* of: this file, the
 tool's description (`UNVERIFIED` in `src/tools/_shared.ts` is appended per tool),

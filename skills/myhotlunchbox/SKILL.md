@@ -107,6 +107,6 @@ afterwards to confirm it landed. A `200` is not proof.
 
 ## Prefer the MCP when it is available
 
-`myhotlunchbox-mcp` wraps all of this with typed tools, confirm-gated writes and
-a dry-run preview for every mutation. Use this skill when the MCP is not
-installed, or inside a script.
+`myhotlunchbox-mcp` wraps all of this with typed tools and a confirmation step
+for every mutation — a prompt, or a preview plus a single-use `confirmToken`.
+Use this skill when the MCP is not installed, or inside a script.
