@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.2.1](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.2.0...v1.2.1) (2026-09-25)
+
+
+### Bug Fixes
+
+* **billing:** mask gift-card codes in mhlb_list_gift_cards by default ([#93](https://github.com/chrischall/myhotlunchbox-mcp/issues/93)) ([9653a24](https://github.com/chrischall/myhotlunchbox-mcp/commit/9653a2452782d485df785f51656360920315da6a))
+* **billing:** never reveal short gift-card codes in full when masking ([#95](https://github.com/chrischall/myhotlunchbox-mcp/issues/95)) ([fddb130](https://github.com/chrischall/myhotlunchbox-mcp/commit/fddb130f1eeb4e46267676ebb86afe868ef36b44))
+* **deps:** bump dotenv from 18.0.0 to 18.0.2 in the production-dependencies group ([#91](https://github.com/chrischall/myhotlunchbox-mcp/issues/91)) ([1903c67](https://github.com/chrischall/myhotlunchbox-mcp/commit/1903c678224c81f0249840ef1b36f1e898a8ecd4))
+
 ## [1.2.0](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.1.4...v1.2.0) (2026-09-24)
 
 
