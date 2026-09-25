@@ -60,3 +60,22 @@ describe('maskGiftCardCodes', () => {
     ).toEqual([{ cardNumber: '****8888', giftCardNo: '****5678', number: 7, statusCode: 2, nested: { code: '****1234' } }]);
   });
 });
+
+describe('maskCode', () => {
+  it('shows the last 4 of a normal-length code', async () => {
+    const { maskCode } = await import('../src/tools/billing.js');
+    expect(maskCode('TESTGIFT00001111')).toBe('****1111');
+    expect(maskCode('12345678')).toBe('****5678');
+  });
+
+  it('never reveals a short code in full — at most half of it shows', async () => {
+    const { maskCode } = await import('../src/tools/billing.js');
+    expect(maskCode('1234')).toBe('****34');
+    expect(maskCode('ABC')).toBe('****C');
+    expect(maskCode('Z')).toBe('****');
+    expect(maskCode('')).toBe('****');
+    for (const code of ['A', 'AB', 'ABC', 'ABCD', 'ABCDE', 'ABCDEFG']) {
+      expect(maskCode(code)).not.toContain(code);
+    }
+  });
+});

@@ -208,9 +208,14 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
  */
 const GIFT_CARD_CODE_KEY = /^code$|^(?:gift_?)?card_?(?:code|number|no|num)$/i;
 
-/** `'****' + last 4` — enough to tell cards apart, not enough to redeem one. */
+/**
+ * `'****' + last 4` — enough to tell cards apart, not enough to redeem one.
+ * A short code shows at most half its characters (rounded down), so a code of
+ * 4 or fewer is never revealed in full.
+ */
 export function maskCode(code: string): string {
-  return `****${code.slice(-4)}`;
+  const shown = Math.min(4, Math.floor(code.length / 2));
+  return `****${shown > 0 ? code.slice(-shown) : ''}`;
 }
 
 /**
