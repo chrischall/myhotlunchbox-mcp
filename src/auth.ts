@@ -1,4 +1,4 @@
-import { McpToolError, truncateErrorMessage } from '@chrischall/mcp-utils';
+import { EdgeBlockedError, McpToolError, detectEdgeBlock, truncateErrorMessage } from '@chrischall/mcp-utils';
 import { TokenManager } from '@chrischall/mcp-utils/session';
 import { API_PREFIX, OAUTH_SCOPE, type MhlbConfig } from './config.js';
 import { createTokenCache, reportCacheWriteFailure } from './token-cache.js';
@@ -126,6 +126,19 @@ export class MhlbAuth {
 
     const raw = await res.text();
     if (!res.ok) {
+      // A CDN/WAF refused the sign-in before the token endpoint saw it, so the
+      // password was never judged. Reporting it as "rejected the sign-in"
+      // points at a credential on an account that locks on failed attempts.
+      // Not an invalid_grant, so it latches nothing and triggers no fallback
+      // password grant (chrischall/mcp-host#1015).
+      const edge = detectEdgeBlock({ body: raw, headers: res.headers, status: res.status });
+      if (edge !== null) {
+        throw new EdgeBlockedError(res.status, edge.vendor, {
+          service: 'My Hot Lunchbox',
+          method: 'POST',
+          path: `${API_PREFIX}/auth/login`,
+        });
+      }
       let parsed: TokenErrorResponse | null = null;
       try {
         parsed = JSON.parse(raw) as TokenErrorResponse;
