@@ -101,11 +101,15 @@ retry reuses it.
 ## Writes are confirmed through `confirmWrite`
 
 Every mutating tool takes `confirmToken: confirmTokenParam`, calls
-`confirmWrite(ctx, …)` from `src/tools/_shared.ts` before its request and
-returns the gate result when there is one, and appends `CONFIRMS` to its
+mcp-utils' shared `confirmWrite(ctx, { tool, action, summary, account: undefined,
+target, request, preview: previewNotes(…), confirmToken })` before its request
+and returns the gate result when there is one, and appends `CONFIRMS` (the
+shared `CONFIRM_FLOW_SENTENCE`, from `src/tools/_shared.ts`) to its
 description. The `request` passed in must be exactly what the write sends — it
-is shown in the preview and hashed into the token, so anything generated per
-call (like checkout's idempotency key) stays out of it until after the gate.
+is shown in the preview (`method`, `path`, `willSend`, `willSendQuery`) and
+bound into the token and the elicitation acceptance, together with the notes,
+so anything generated per call (like checkout's idempotency key) stays out of
+it until after the gate.
 
 ## Writes are unverified
 

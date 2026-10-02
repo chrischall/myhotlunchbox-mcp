@@ -1,69 +1,21 @@
-import { confirmationFromEnv, minifiedResult, requireConfirmationWithFallback } from '@chrischall/mcp-utils';
-import type { CallToolResult, InputRequiredResult, ServerContext } from '@modelcontextprotocol/server';
-
-/** The request a write will send — shown in the preview and hashed into the token. */
-export interface WriteRequest {
-  method: 'POST';
-  path: string;
-  query?: Record<string, unknown>;
-  body?: unknown;
-}
+import { CONFIRM_FLOW_SENTENCE, minifiedResult } from '@chrischall/mcp-utils';
 
 /**
  * Sentence every write tool's description ends with, so the confirmation flow
- * is stated identically everywhere.
+ * is stated identically everywhere — mcp-utils' shared `CONFIRM_FLOW_SENTENCE`,
+ * with the leading space the `description + CONFIRMS + UNVERIFIED` concatenation
+ * needs.
  */
-export const CONFIRMS =
-  ' Asks the user to confirm first: a confirmation prompt where the client supports one; otherwise the first ' +
-  'call returns a preview and a confirmToken, and only a repeat call with that token proceeds (see MCP_CONFIRM_MODE).';
+export const CONFIRMS = ` ${CONFIRM_FLOW_SENTENCE}`;
 
 /**
- * Confirmation gate for a write.
- *
- * A client that can show a prompt gets one. Elsewhere the first call makes
- * **no** network call and returns a preview — the exact request it would send,
- * plus notes — with a `confirmToken`; only a repeat call carrying that token,
- * with arguments that still produce the same request, proceeds. `undefined`
- * means proceed; anything else is the result to return unchanged.
+ * The `notes` preview field every write passes to mcp-utils' `confirmWrite`:
+ * always leads with "Nothing has been sent yet." so the model cannot mistake
+ * the phase-1 preview for a completed write. Shown in the preview and bound
+ * into the confirmation alongside the request.
  */
-export function confirmWrite(
-  ctx: ServerContext,
-  opts: {
-    tool: string;
-    /** `<service>.<verb>`, e.g. `order.delete`. */
-    action: string;
-    /** Human label for the preview, e.g. "Delete order". */
-    label: string;
-    /** The primary id acted on, or '' if none. */
-    target: string;
-    request: WriteRequest;
-    confirmToken: string | undefined;
-    notes?: string[];
-    /** Extra preview fields that are bound into the token alongside the request. */
-    extra?: Record<string, unknown>;
-  },
-): Promise<CallToolResult | InputRequiredResult | undefined> {
-  const preview = {
-    action: opts.label,
-    wouldSend: opts.request,
-    ...opts.extra,
-    notes: ['Nothing has been sent yet.', ...(opts.notes ?? [])],
-  };
-  return requireConfirmationWithFallback(
-    ctx,
-    confirmationFromEnv({
-      action: opts.action,
-      message: `Review and confirm: ${opts.label}`,
-      details: preview,
-      tool: opts.tool,
-      confirmToken: opts.confirmToken,
-      subject: () => ({
-        target: opts.target,
-        payload: { request: opts.request, ...opts.extra },
-        preview,
-      }),
-    }),
-  );
+export function previewNotes(...notes: string[]): { notes: string[] } {
+  return { notes: ['Nothing has been sent yet.', ...notes] };
 }
 
 // `minifiedResult` only. This seam re-exported both for a while, and every

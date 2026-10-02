@@ -2,7 +2,8 @@ import { toolAnnotations, PositiveInt, IsoDate, confirmTokenParam } from '@chris
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { MhlbClient } from '../client.js';
-import { CONFIRMS, UNVERIFIED, confirmWrite, minifiedResult } from './_shared.js';
+import { confirmWrite } from '@chrischall/mcp-utils';
+import { CONFIRMS, UNVERIFIED, minifiedResult, previewNotes } from './_shared.js';
 
 /**
  * Ordering is read-modify-write throughout: `GET /event/createOrder` and
@@ -166,11 +167,12 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
       const gate = await confirmWrite(ctx, {
         tool: 'mhlb_create_order',
         action: 'order.create',
-        label: 'Create order',
+        summary: 'Create order',
+        account: undefined,
         target: '',
         request: { method: 'POST', path: '/event/createOrder', body: order },
         confirmToken,
-        notes: ['This adds the lunch to the cart. Payment is a separate step (mhlb_checkout).'],
+        preview: previewNotes('This adds the lunch to the cart. Payment is a separate step (mhlb_checkout).'),
       });
       if (gate) return gate;
       return minifiedResult(await client.write('/event/createOrder', order));
@@ -190,11 +192,12 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
       const gate = await confirmWrite(ctx, {
         tool: 'mhlb_update_order',
         action: 'order.update',
-        label: 'Update order',
+        summary: 'Update order',
+        account: undefined,
         target: '',
         request: { method: 'POST', path: '/event/editOrder', body: order },
         confirmToken,
-        notes: ['This is a whole-order replace: items missing from `order` are removed, not preserved.'],
+        preview: previewNotes('This is a whole-order replace: items missing from `order` are removed, not preserved.'),
       });
       if (gate) return gate;
       return minifiedResult(await client.write('/event/editOrder', order));
@@ -215,14 +218,15 @@ export function registerOrderTools(server: McpServer, client: MhlbClient): void 
       const gate = await confirmWrite(ctx, {
         tool: 'mhlb_delete_order',
         action: 'order.delete',
-        label: 'Delete order',
+        summary: 'Delete order',
+        account: undefined,
         target: String(ref.orderId),
         request: { method: 'POST', path: '/event/deleteOrder', body },
         confirmToken,
-        notes: [
+        preview: previewNotes(
           'Cancelling a paid order may or may not refund it — verify on the site afterwards.',
           'isRepeated: true removes the whole recurring series, not just this date.',
-        ],
+        ),
       });
       if (gate) return gate;
       return minifiedResult(await client.write('/event/deleteOrder', body));

@@ -2,7 +2,8 @@ import { toolAnnotations, PositiveInt, confirmTokenParam } from '@chrischall/mcp
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { MhlbClient } from '../client.js';
-import { CONFIRMS, UNVERIFIED, confirmWrite, minifiedResult } from './_shared.js';
+import { confirmWrite } from '@chrischall/mcp-utils';
+import { CONFIRMS, UNVERIFIED, minifiedResult, previewNotes } from './_shared.js';
 
 /** One row of `/parent/childrenInfo`. */
 export interface ChildInfo {
@@ -76,10 +77,12 @@ export function registerStudentTools(server: McpServer, client: MhlbClient): voi
       const gate = await confirmWrite(ctx, {
         tool: 'mhlb_create_student',
         action: 'student.create',
-        label: 'Create student',
+        summary: 'Create student',
+        account: undefined,
         target: '',
         request: { method: 'POST', path: '/parent/createChild', body: student },
         confirmToken,
+        preview: previewNotes(),
       });
       if (gate) return gate;
       return minifiedResult(await client.write('/parent/createChild', student));
@@ -99,11 +102,12 @@ export function registerStudentTools(server: McpServer, client: MhlbClient): voi
       const gate = await confirmWrite(ctx, {
         tool: 'mhlb_update_student',
         action: 'student.update',
-        label: 'Update student',
+        summary: 'Update student',
+        account: undefined,
         target: '',
         request: { method: 'POST', path: '/parent/editChild', body: student },
         confirmToken,
-        notes: ['This is a whole-record replace: any field missing from `student` is cleared, not preserved.'],
+        preview: previewNotes('This is a whole-record replace: any field missing from `student` is cleared, not preserved.'),
       });
       if (gate) return gate;
       return minifiedResult(await client.write('/parent/editChild', student));
@@ -126,11 +130,12 @@ export function registerStudentTools(server: McpServer, client: MhlbClient): voi
       const gate = await confirmWrite(ctx, {
         tool: 'mhlb_delete_student',
         action: 'student.delete',
-        label: 'Delete student',
+        summary: 'Delete student',
+        account: undefined,
         target: String(studentId),
         request: { method: 'POST', path: '/parent/deleteChild', query: { id: studentId } },
         confirmToken,
-        notes: ['Deleting a student is not reversible through this API.'],
+        preview: previewNotes('Deleting a student is not reversible through this API.'),
       });
       if (gate) return gate;
       return minifiedResult(await client.write('/parent/deleteChild', undefined, { id: studentId }));
