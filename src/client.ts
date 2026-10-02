@@ -1,4 +1,11 @@
-import { McpToolError, RateLimitError, UnreachableError, truncateErrorMessage } from '@chrischall/mcp-utils';
+import {
+  EdgeBlockedError,
+  McpToolError,
+  RateLimitError,
+  UnreachableError,
+  detectEdgeBlock,
+  truncateErrorMessage,
+} from '@chrischall/mcp-utils';
 import { MhlbAuth, scrubCredentials, type FetchLike } from './auth.js';
 import { API_PREFIX, loadConfig, type MhlbConfig } from './config.js';
 
@@ -86,6 +93,13 @@ export class MhlbClient {
    * server fault, not an outage.
    */
   private classify(res: Response, method: string, path: string, raw: string, serverErrorHint?: string): never {
+    // A CDN/WAF refusal page first: it arrives as a 403 (or a challenge at
+    // any status) that the branches below would report as a role mismatch,
+    // dropping the page that says what it was (chrischall/mcp-host#1015).
+    const edge = detectEdgeBlock({ body: raw, headers: res.headers, status: res.status });
+    if (edge !== null) {
+      throw new EdgeBlockedError(res.status, edge.vendor, { service: 'My Hot Lunchbox', method, path });
+    }
     if (res.status === 429) {
       const retryAfter = Number(res.headers.get('retry-after'));
       throw new RateLimitError('My Hot Lunchbox', Number.isFinite(retryAfter) ? retryAfter : undefined);
