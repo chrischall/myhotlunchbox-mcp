@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CONFIRM_FLOW_SENTENCE } from '@chrischall/mcp-utils';
 import { createTestHarness, parseToolResult, type TestHarness, type TestHarnessOptions } from '@chrischall/mcp-utils/test';
 import { MhlbClient } from '../src/client.js';
 import { registerAccountTools } from '../src/tools/account.js';
@@ -56,7 +57,7 @@ type PhaseOne = {
   status: string;
   dispatched: boolean;
   confirmToken: string;
-  preview: { action: string; wouldSend: { method: string; path: string; query?: unknown; body?: unknown }; notes: string[] };
+  preview: { action: string; method: string; path: string; willSend?: unknown; willSendQuery?: unknown; notes: string[] };
 };
 
 /** Phase 1 then phase 2 with the returned token — the token-flow equivalent of the old `confirm: true`. */
@@ -88,9 +89,9 @@ describe('confirmation gating', () => {
       expect(body.status).toBe('confirmation-required');
       expect(body.dispatched).toBe(false);
       expect(typeof body.confirmToken).toBe('string');
-      expect(body.preview.wouldSend.method).toBe('POST');
-      expect(body.preview.wouldSend.path).toMatch(/^\//);
-      expect(Array.isArray(body.preview.notes)).toBe(true);
+      expect(body.preview.method).toBe('POST');
+      expect(body.preview.path).toMatch(/^\//);
+      expect(body.preview.notes[0]).toBe('Nothing has been sent yet.');
       expect(fetchSpy).not.toHaveBeenCalled();
     } finally {
       await harness.close();
@@ -104,7 +105,7 @@ describe('confirmation gating', () => {
       expect(fetchSpy).not.toHaveBeenCalled();
       const result = await harness.callTool(name, { ...args, confirmToken: first.confirmToken });
       expect(result.isError).toBeFalsy();
-      const writes = fetchSpy.mock.calls.filter((c) => String(c[0]).includes(first.preview.wouldSend.path));
+      const writes = fetchSpy.mock.calls.filter((c) => String(c[0]).includes(first.preview.path));
       expect(writes).toHaveLength(1);
     } finally {
       await harness.close();
@@ -116,6 +117,33 @@ describe('confirmation gating', () => {
     try {
       const body = parseToolResult<PhaseOne>(await harness.callTool('mhlb_remove_coupon', { confirm: true }));
       expect(body.status).toBe('confirmation-required');
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      await harness.close();
+    }
+  });
+
+  it('every write tool description carries the shared CONFIRM_FLOW_SENTENCE', async () => {
+    const { harness } = await harnessWithSpy();
+    try {
+      const { tools } = await harness.client.listTools();
+      const names = new Set(WRITE_TOOLS.map(([name]) => name));
+      const writes = tools.filter((t) => names.has(t.name));
+      expect(writes).toHaveLength(names.size);
+      for (const t of writes) expect(t.description).toContain(CONFIRM_FLOW_SENTENCE);
+    } finally {
+      await harness.close();
+    }
+  });
+
+  it('previews query-only writes under willSendQuery and binds the query', async () => {
+    const { harness, fetchSpy } = await harnessWithSpy();
+    try {
+      const first = parseToolResult<PhaseOne>(await harness.callTool('mhlb_apply_coupon', { code: 'SAVE10' }));
+      expect(first.preview).toMatchObject({ method: 'POST', path: '/parent/applyCoupon', willSendQuery: { couponCode: 'SAVE10' } });
+      expect(first.preview.willSend).toBeUndefined();
+      const changed = await harness.callTool('mhlb_apply_coupon', { code: 'SAVE20', confirmToken: first.confirmToken });
+      expect(changed.isError).toBe(true);
       expect(fetchSpy).not.toHaveBeenCalled();
     } finally {
       await harness.close();
@@ -407,14 +435,14 @@ describe('checkout safety', () => {
         await harness.callTool('mhlb_checkout', { orderIds: [1], expectedTotal: 7, idempotencyKey: 'k-1' }),
       );
       expect(withKey.preview.expectedTotal).toBe(7);
-      expect(withKey.preview.wouldSend.body).toMatchObject({ orderIds: [1], idempotencyKey: 'k-1' });
+      expect(withKey.preview.willSend).toMatchObject({ orderIds: [1], idempotencyKey: 'k-1' });
 
       // No key given: one is generated at send time (it cannot be fixed in a
       // preview without changing what the token binds), and the preview says so.
       const noKey = parseToolResult<PhaseOne>(
         await harness.callTool('mhlb_checkout', { orderIds: [1], expectedTotal: 7 }),
       );
-      expect(noKey.preview.wouldSend.body).toMatchObject({ idempotencyKey: expect.stringMatching(/generated/i) });
+      expect(noKey.preview.willSend).toMatchObject({ idempotencyKey: expect.stringMatching(/generated/i) });
     } finally {
       await harness.close();
     }

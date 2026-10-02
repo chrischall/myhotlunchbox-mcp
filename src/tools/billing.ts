@@ -2,7 +2,8 @@ import { toolAnnotations, PositiveInt, NonEmptyString, confirmTokenParam } from 
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { MhlbClient } from '../client.js';
-import { CONFIRMS, UNVERIFIED, confirmWrite, minifiedResult } from './_shared.js';
+import { confirmWrite } from '@chrischall/mcp-utils';
+import { CONFIRMS, UNVERIFIED, minifiedResult, previewNotes } from './_shared.js';
 import { OrderRefShape, orderRefBody } from './orders.js';
 
 export function registerBillingTools(server: McpServer, client: MhlbClient): void {
@@ -68,11 +69,14 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
       const gate = await confirmWrite(ctx, {
         tool: 'mhlb_set_subscription_enabled',
         action: 'subscription.set_enabled',
-        label: `${enabled ? 'Enable' : 'Disable'} subscriptions`,
+        summary: `${enabled ? 'Enable' : 'Disable'} subscriptions`,
+        account: undefined,
         target: '',
         request: { method: 'POST', path: '/parent/changeSubscriptionStatus', query: { isEnableSubscription: enabled } },
         confirmToken,
-        notes: enabled ? ['Enabling means future lunches are ordered and charged automatically.'] : [],
+        preview: previewNotes(
+          ...(enabled ? ['Enabling means future lunches are ordered and charged automatically.'] : []),
+        ),
       });
       if (gate) return gate;
       return minifiedResult(
@@ -96,11 +100,12 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
       const gate = await confirmWrite(ctx, {
         tool: 'mhlb_unsubscribe_order',
         action: 'order.unsubscribe',
-        label: 'Unsubscribe order',
+        summary: 'Unsubscribe order',
+        account: undefined,
         target: String(ref.orderId),
         request: { method: 'POST', path: '/event/unsubcribeOrder', body },
         confirmToken,
-        notes: ['isRepeated: true stops the whole recurring series, not just this date.'],
+        preview: previewNotes('isRepeated: true stops the whole recurring series, not just this date.'),
       });
       if (gate) return gate;
       return minifiedResult(await client.write('/event/unsubcribeOrder', body));
@@ -138,10 +143,12 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
       const gate = await confirmWrite(ctx, {
         tool: 'mhlb_apply_gift_card',
         action: 'gift_card.apply',
-        label: 'Apply gift card',
+        summary: 'Apply gift card',
+        account: undefined,
         target: code,
         request: { method: 'POST', path: '/parent/applyGiftCard', query: { giftCardCode: code } },
         confirmToken,
+        preview: previewNotes(),
       });
       if (gate) return gate;
       return minifiedResult(await client.write('/parent/applyGiftCard', undefined, { giftCardCode: code }));
@@ -169,10 +176,12 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
       const gate = await confirmWrite(ctx, {
         tool: 'mhlb_apply_coupon',
         action: 'coupon.apply',
-        label: 'Apply coupon',
+        summary: 'Apply coupon',
+        account: undefined,
         target: code,
         request: { method: 'POST', path: '/parent/applyCoupon', query: { couponCode: code } },
         confirmToken,
+        preview: previewNotes(),
       });
       if (gate) return gate;
       return minifiedResult(await client.write('/parent/applyCoupon', undefined, { couponCode: code }));
@@ -190,10 +199,12 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
       const gate = await confirmWrite(ctx, {
         tool: 'mhlb_remove_coupon',
         action: 'coupon.remove',
-        label: 'Remove coupon',
+        summary: 'Remove coupon',
+        account: undefined,
         target: '',
         request: { method: 'POST', path: '/parent/removeCoupon' },
         confirmToken,
+        preview: previewNotes(),
       });
       if (gate) return gate;
       return minifiedResult(await client.write('/parent/removeCoupon'));

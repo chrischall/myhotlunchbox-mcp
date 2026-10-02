@@ -3,7 +3,8 @@ import { McpToolError, toolAnnotations, PositiveInt, confirmTokenParam } from '@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { MhlbClient } from '../client.js';
-import { CONFIRMS, UNVERIFIED, confirmWrite, minifiedResult } from './_shared.js';
+import { confirmWrite } from '@chrischall/mcp-utils';
+import { CONFIRMS, UNVERIFIED, minifiedResult, previewNotes } from './_shared.js';
 
 /**
  * Checkout is the only pair of tools that moves money. Both ask for
@@ -35,11 +36,12 @@ export function registerCheckoutTools(server: McpServer, client: MhlbClient): vo
       const gate = await confirmWrite(ctx, {
         tool: 'mhlb_init_checkout',
         action: 'checkout.init',
-        label: 'Initialise checkout',
+        summary: 'Initialise checkout',
+        account: undefined,
         target: args.orderIds.join(','),
         request: { method: 'POST', path: '/payment/initCheckout', body },
         confirmToken,
-        notes: ['This step prices the cart and returns payment options. It does not charge a card.'],
+        preview: previewNotes('This step prices the cart and returns payment options. It does not charge a card.'),
       });
       if (gate) return gate;
       return minifiedResult(await client.write('/payment/initCheckout', body));
@@ -94,26 +96,29 @@ export function registerCheckoutTools(server: McpServer, client: MhlbClient): vo
       const gate = await confirmWrite(ctx, {
         tool: 'mhlb_checkout',
         action: 'checkout.pay',
-        label: 'Pay for cart',
+        summary: 'Pay for cart',
+        account: undefined,
         target: args.orderIds.join(','),
         request: {
           method: 'POST',
           path: '/payment/checkout',
           body: { ...baseBody, idempotencyKey: idempotencyKey ?? GENERATED_KEY },
         },
-        extra: { expectedTotal },
         confirmToken,
-        notes: [
-          `This CHARGES a payment method. Expected total: ${expectedTotal}.`,
-          'No stripeToken is sent, so this can only pay with a card already saved on the account. ' +
-            'Paying with a NEW card needs a Stripe token minted by Stripe.js in a browser, which no ' +
-            'server-side client can produce — do that on the site.',
-          idempotencyKey !== undefined
-            ? `Idempotency key for this attempt: ${idempotencyKey}. Reuse it if you retry.`
-            : 'Idempotency key: none given, so one is generated when the payment is sent and returned with the ' +
-              'result (and with any error). Reuse that key if you retry — a fresh one lets the server take a ' +
-              'second charge.',
-        ],
+        preview: {
+          expectedTotal,
+          ...previewNotes(
+            `This CHARGES a payment method. Expected total: ${expectedTotal}.`,
+            'No stripeToken is sent, so this can only pay with a card already saved on the account. ' +
+              'Paying with a NEW card needs a Stripe token minted by Stripe.js in a browser, which no ' +
+              'server-side client can produce — do that on the site.',
+            idempotencyKey !== undefined
+              ? `Idempotency key for this attempt: ${idempotencyKey}. Reuse it if you retry.`
+              : 'Idempotency key: none given, so one is generated when the payment is sent and returned with the ' +
+                'result (and with any error). Reuse that key if you retry — a fresh one lets the server take a ' +
+                'second charge.',
+          ),
+        },
       });
       if (gate) return gate;
 
