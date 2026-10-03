@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.2.3](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.2.2...v1.2.3) (2026-10-03)
+
+
+### Bug Fixes
+
+* **deps:** adopt @chrischall/mcp-utils 2.12.0 confirmWrite kit ([#103](https://github.com/chrischall/myhotlunchbox-mcp/issues/103)) ([8452fc0](https://github.com/chrischall/myhotlunchbox-mcp/commit/8452fc09ef9f0dfc2b22b31b74f551ef263ffa8e))
+* **deps:** bump @chrischall/mcp-utils to 2.13.0 ([#104](https://github.com/chrischall/myhotlunchbox-mcp/issues/104)) ([dbef857](https://github.com/chrischall/myhotlunchbox-mcp/commit/dbef857416cce749343767518fc509a6e2ccb635))
+* keep credentials and report edge_blocked on CDN/WAF blocks (mcp-utils 2.10.0) ([#100](https://github.com/chrischall/myhotlunchbox-mcp/issues/100)) ([95857d7](https://github.com/chrischall/myhotlunchbox-mcp/commit/95857d761617e65a7967d611c190f48b59d535e6))
+* keep write approvals valid across a hosted restart (mcp-utils 2.11.0) ([#102](https://github.com/chrischall/myhotlunchbox-mcp/issues/102)) ([93487b9](https://github.com/chrischall/myhotlunchbox-mcp/commit/93487b9c0a69fe80fc4240cc5bf6424aa3649190))
+
 ## [1.2.2](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.2.1...v1.2.2) (2026-09-28)
 
 
