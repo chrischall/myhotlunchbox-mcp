@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.4](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.2.3...v1.2.4) (2026-10-05)
+
+
+### Bug Fixes
+
+* **deps:** require @chrischall/mcp-utils 2.14.0 and MCP SDK 2.3.0 ([#105](https://github.com/chrischall/myhotlunchbox-mcp/issues/105)) ([373e971](https://github.com/chrischall/myhotlunchbox-mcp/commit/373e97108d25dc2faef56a0b32b28bcafe17561f))
+
 ## [1.2.3](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.2.2...v1.2.3) (2026-10-03)
 
 
