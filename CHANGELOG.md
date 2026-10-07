@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.5](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.2.4...v1.2.5) (2026-10-07)
+
+
+### Bug Fixes
+
+* **deps:** bump dotenv from 18.0.2 to 18.0.5 in the production-dependencies group ([#109](https://github.com/chrischall/myhotlunchbox-mcp/issues/109)) ([eab9496](https://github.com/chrischall/myhotlunchbox-mcp/commit/eab9496fbaea235d73a9e94def9010f8bfc08829))
+* **deps:** honor MCP_CONFIRM_ELICITATION=off for clients that never show confirmation prompts ([#111](https://github.com/chrischall/myhotlunchbox-mcp/issues/111)) ([9c5fce9](https://github.com/chrischall/myhotlunchbox-mcp/commit/9c5fce9a0ad5ceaa39bac8f707c08a35391f4ddb))
+
+
+### Documentation
+
+* document MCP_CONFIRM_ELICITATION ([#112](https://github.com/chrischall/myhotlunchbox-mcp/issues/112)) ([7a91200](https://github.com/chrischall/myhotlunchbox-mcp/commit/7a91200651bd889f525bf00cf6139f12ff79b209))
+
 ## [1.2.4](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.2.3...v1.2.4) (2026-10-05)
 
 
