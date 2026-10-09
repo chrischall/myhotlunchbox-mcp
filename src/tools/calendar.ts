@@ -2,7 +2,7 @@ import { toolAnnotations, PositiveInt, IsoDate } from '@chrischall/mcp-utils';
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { MhlbClient } from '../client.js';
-import { minifiedResult } from './_shared.js';
+import { UNTRUSTED, untrustedRead } from './_shared.js';
 
 export function registerCalendarTools(server: McpServer, client: MhlbClient): void {
   server.registerTool(
@@ -10,7 +10,7 @@ export function registerCalendarTools(server: McpServer, client: MhlbClient): vo
     {
       description:
         'Get the lunch calendar for the account over a date range: which days are open for ordering, already ' +
-        'ordered, paid, in the cart, subscribed or closed, per student. This is what the Lunch Calendar page shows.',
+        'ordered, paid, in the cart, subscribed or closed, per student. This is what the Lunch Calendar page shows.' + UNTRUSTED,
       annotations: toolAnnotations({ title: 'Get lunch calendar', openWorld: true }),
       inputSchema: z.object({
         startDate: IsoDate.describe('First day to include (YYYY-MM-DD).'),
@@ -21,14 +21,14 @@ export function registerCalendarTools(server: McpServer, client: MhlbClient): vo
     // `startDate`/`endDate` returns 200 with an empty `events` array — a silent
     // wrong answer, not an error.
     async ({ startDate, endDate }) =>
-      minifiedResult(await client.write('/calendar/studentSchoolData', { start: startDate, end: endDate })),
+      untrustedRead(await client.write('/calendar/studentSchoolData', { start: startDate, end: endDate })),
   );
 
   server.registerTool(
     'mhlb_get_day',
     {
       description:
-        'Get what a student has ordered on one specific date — the items, sizes, quantities, add-ons and prices.',
+        'Get what a student has ordered on one specific date — the items, sizes, quantities, add-ons and prices.' + UNTRUSTED,
       annotations: toolAnnotations({ title: 'Get a day’s order', openWorld: true }),
       inputSchema: z.object({
         studentId: PositiveInt.describe('Student id from mhlb_list_students.'),
@@ -36,7 +36,7 @@ export function registerCalendarTools(server: McpServer, client: MhlbClient): vo
       }),
     },
     async ({ studentId, date }) =>
-      minifiedResult(await client.get('/calendar/studentOrderItems', { studentId, date })),
+      untrustedRead(await client.get('/calendar/studentOrderItems', { studentId, date })),
   );
 
 }

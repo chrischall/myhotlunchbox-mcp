@@ -210,22 +210,32 @@ export function registerReportTools(server: McpServer, client: MhlbClient): void
     'mhlb_print_transaction',
     {
       description:
-        'Generate the printable receipt PDF for one transaction. Pass the transaction object from ' +
-        'mhlb_get_transaction — the endpoint renders that record, it does not look one up by id.',
+        'Generate the printable receipt PDF for one transaction. Pass the transaction id from ' +
+        'mhlb_list_transactions; the server fetches that transaction’s detail record and has the endpoint ' +
+        'render it, so the receipt always reflects the account’s real data.',
       annotations: toolAnnotations({ title: 'Print transaction receipt', readOnly: false, openWorld: true, destructive: false }),
       inputSchema: z.object({
-        transaction: z
-          .record(z.string(), z.unknown())
-          .describe('The transaction detail object, as returned by mhlb_get_transaction.'),
+        transactionId: PositiveInt.describe('Transaction id (the `id` field from mhlb_list_transactions).'),
         isCreditType: z.boolean().optional().describe('Render as a credit rather than a payment. Default false.'),
         filename: z.string().optional().describe('Output filename. Defaults to "Transaction.pdf".'),
         inline: inlineFlag,
       }),
     },
-    async ({ transaction, isCreditType, filename, inline }) => {
+    async ({ transactionId, isCreditType, filename, inline }) => {
       const name = safeName(filename ?? 'Transaction.pdf');
+      // The endpoint renders whatever record it is handed rather than looking
+      // one up, so the body is built ONLY from the upstream
+      // /event/transactionDetails record — never from a model-authored object
+      // (chrischall/fleet-audit#872). This is the same `{...record,
+      // isCreditType}` shape scripts/verify-reads.mjs prints live.
+      const record = await client.get<unknown>('/event/transactionDetails', { id: transactionId });
+      if (record === null || typeof record !== 'object' || Array.isArray(record)) {
+        throw new McpToolError(`Transaction ${transactionId} did not come back as a detail record.`, {
+          hint: 'Check the id against mhlb_list_transactions; nothing was printed.',
+        });
+      }
       const { bytes, contentType } = await client.writeBinary('/parentReports/printTransactions', {
-        ...transaction,
+        ...(record as Record<string, unknown>),
         isCreditType: isCreditType ?? false,
       });
       return deliver(bytes, contentType, name, inline ?? false);

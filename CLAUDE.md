@@ -62,9 +62,12 @@ Tools for them were removed; don't re-add them from the extraction.
 `studentIds` — same as `printOrders`. Neither has an "all students" default, so
 both schemas require `.min(1)`.
 
-`mhlb_print_transaction` wants the record from `/event/transactionDetails`, not
-a row from `/event/transactionsList`. Both render, but they are different shapes
-and different documents.
+`/parentReports/printTransactions` wants the record from
+`/event/transactionDetails`, not a row from `/event/transactionsList`. Both
+render, but they are different shapes and different documents. So
+`mhlb_print_transaction` takes a `transactionId` and fetches that record itself:
+the body is the upstream record plus `isCreditType`, never a model-supplied
+object (fleet-audit#872). Do not reopen a `transaction` record input.
 
 Re-run `node scripts/verify-reads.mjs` (needs `.env`) after touching any read
 path — it drives all 20 read tools through the built client, measures coverage
@@ -97,6 +100,17 @@ else. `idempotencyKey` is client-generated
 retry reuses it.
 
 `captured-writes.json` is gitignored — it holds real student and order ids.
+
+## Third-party text is framed as untrusted
+
+Reads that return school-, vendor- or menu-authored text go through
+`untrustedRead` in `src/tools/_shared.ts` (mcp-utils' `untrustedResult`, with a
+note naming the school and its vendors) and append `UNTRUSTED` to their
+description. The payload is always nested under `data`, never spread beside the
+markers, so a read-modify-write form hands back a model with no
+`untrusted_content`/`note` keys mixed in — upstream models have their own
+`note`-like fields, so stripping keys on the way back in is not an option.
+`tests/read-tools.test.ts` pins which reads are framed.
 
 ## Writes are confirmed through `confirmWrite`
 

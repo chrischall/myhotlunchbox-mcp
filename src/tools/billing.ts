@@ -3,14 +3,14 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { MhlbClient } from '../client.js';
 import { confirmWrite } from '@chrischall/mcp-utils';
-import { CONFIRMS, UNVERIFIED, minifiedResult, previewNotes } from './_shared.js';
+import { CONFIRMS, UNTRUSTED, UNVERIFIED, minifiedResult, previewNotes, untrustedRead } from './_shared.js';
 import { OrderRefShape, orderRefBody } from './orders.js';
 
 export function registerBillingTools(server: McpServer, client: MhlbClient): void {
   server.registerTool(
     'mhlb_list_transactions',
     {
-      description: 'List payment transactions on the account — date, amount, and what was paid for.',
+      description: 'List payment transactions on the account — date, amount, and what was paid for.' + UNTRUSTED,
       annotations: toolAnnotations({ title: 'List transactions', openWorld: true }),
       inputSchema: z.object({
         period: z.string().optional().describe('Ordering period to scope to, from mhlb_get_cart_tabs.'),
@@ -18,39 +18,39 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
       }),
     },
     async ({ period, studentId }) =>
-      minifiedResult(await client.get('/event/transactionsList', { selectedPeriod: period, selectedStudentId: studentId })),
+      untrustedRead(await client.get('/event/transactionsList', { selectedPeriod: period, selectedStudentId: studentId })),
   );
 
   server.registerTool(
     'mhlb_get_transaction',
     {
-      description: 'Get the line-item detail of one transaction — which lunches it paid for.',
+      description: 'Get the line-item detail of one transaction — which lunches it paid for.' + UNTRUSTED,
       annotations: toolAnnotations({ title: 'Get transaction', openWorld: true }),
       inputSchema: z.object({ transactionId: PositiveInt.describe('Transaction id (the `id` field from mhlb_list_transactions).') }),
     },
     // The query parameter is `id`, not `transactionId` — verified live.
-    async ({ transactionId }) => minifiedResult(await client.get('/event/transactionDetails', { id: transactionId })),
+    async ({ transactionId }) => untrustedRead(await client.get('/event/transactionDetails', { id: transactionId })),
   );
 
   server.registerTool(
     'mhlb_list_subscriptions',
     {
       description:
-        'List upcoming lunch subscriptions — the recurring orders that will be placed and charged automatically.',
+        'List upcoming lunch subscriptions — the recurring orders that will be placed and charged automatically.' + UNTRUSTED,
       annotations: toolAnnotations({ title: 'List subscriptions', openWorld: true }),
       inputSchema: z.object({ period: z.string().optional().describe('Ordering period to scope to.') }),
     },
-    async ({ period }) => minifiedResult(await client.get('/event/upcomingSubscriptions', { period })),
+    async ({ period }) => untrustedRead(await client.get('/event/upcomingSubscriptions', { period })),
   );
 
   server.registerTool(
     'mhlb_get_subscription_settings',
     {
-      description: 'Get the account’s subscription configuration — whether recurring ordering is on, and its terms.',
+      description: 'Get the account’s subscription configuration — whether recurring ordering is on, and its terms.' + UNTRUSTED,
       annotations: toolAnnotations({ title: 'Get subscription settings', openWorld: true }),
       inputSchema: z.object({}),
     },
-    async () => minifiedResult(await client.get('/event/subscription')),
+    async () => untrustedRead(await client.get('/event/subscription')),
   );
 
   server.registerTool(
@@ -158,11 +158,11 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
   server.registerTool(
     'mhlb_get_coupon',
     {
-      description: 'Get the coupon currently applied to the account, if any.',
+      description: 'Get the coupon currently applied to the account, if any.' + UNTRUSTED,
       annotations: toolAnnotations({ title: 'Get applied coupon', openWorld: true }),
       inputSchema: z.object({}),
     },
-    async () => minifiedResult(await client.get('/parent/coupon')),
+    async () => untrustedRead(await client.get('/parent/coupon')),
   );
 
   server.registerTool(

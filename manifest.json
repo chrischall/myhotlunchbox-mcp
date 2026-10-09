@@ -121,11 +121,11 @@
     },
     {
       "name": "mhlb_get_order",
-      "description": "Get an existing order in editable form — the model mhlb_update_order expects back."
+      "description": "Get an existing order in editable form — `data` is the model mhlb_update_order expects back."
     },
     {
       "name": "mhlb_get_order_form",
-      "description": "Get the blank order model for a student on a specific lunch event — the exact structure that mhlb_create_order expects back, pre-populated with the available items."
+      "description": "Get the blank order model for a student on a specific lunch event — the exact structure that mhlb_create_order expects back (as `data`), pre-populated with the available items."
     },
     {
       "name": "mhlb_get_student_form",
@@ -149,7 +149,7 @@
     },
     {
       "name": "mhlb_list_gift_cards",
-      "description": "List gift cards on the account — balances and status, with each code masked to its last 4 characters (revealCodes: true for full codes)."
+      "description": "List gift cards on the account — balances and status, with each code masked to its last 4 characters."
     },
     {
       "name": "mhlb_list_students",
@@ -165,7 +165,7 @@
     },
     {
       "name": "mhlb_new_student_form",
-      "description": "Get a blank student profile plus the school/grade/teacher dropdown options, ready to fill in and pass to mhlb_create_student."
+      "description": "Get a blank student profile plus the school/grade/teacher dropdown options, ready to fill in and pass (its `data`) to mhlb_create_student."
     },
     {
       "name": "mhlb_print_calendar",

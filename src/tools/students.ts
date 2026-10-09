@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { MhlbClient } from '../client.js';
 import { confirmWrite } from '@chrischall/mcp-utils';
-import { CONFIRMS, UNVERIFIED, minifiedResult, previewNotes } from './_shared.js';
+import { CONFIRMS, UNTRUSTED, UNVERIFIED, minifiedResult, previewNotes, untrustedRead } from './_shared.js';
 
 /** One row of `/parent/childrenInfo`. */
 export interface ChildInfo {
@@ -24,7 +24,7 @@ export interface ChildInfo {
  */
 const StudentModel = z
   .record(z.string(), z.unknown())
-  .describe('The student model, as returned by mhlb_get_student_form / mhlb_new_student_form, with your edits applied.');
+  .describe('The student model — the `data` object returned by mhlb_get_student_form / mhlb_new_student_form — with your edits applied.');
 
 export function registerStudentTools(server: McpServer, client: MhlbClient): void {
   server.registerTool(
@@ -33,11 +33,11 @@ export function registerStudentTools(server: McpServer, client: MhlbClient): voi
       description:
         'List the students on the account: id, first name, school, grade/teacher, whether they have orders, ' +
         'and whether the profile is inactive or still an unaccepted invite. The student id feeds every ' +
-        'calendar and ordering tool.',
+        'calendar and ordering tool.' + UNTRUSTED,
       annotations: toolAnnotations({ title: 'List students', openWorld: true }),
       inputSchema: z.object({}),
     },
-    async () => minifiedResult(await client.get<ChildInfo[]>('/parent/childrenInfo')),
+    async () => untrustedRead(await client.get<ChildInfo[]>('/parent/childrenInfo')),
   );
 
   server.registerTool(
@@ -45,11 +45,11 @@ export function registerStudentTools(server: McpServer, client: MhlbClient): voi
     {
       description:
         'Get the editable profile for one student — school, grade, teacher, delivery location, allergies and ' +
-        'the dropdown options for each. Returns the exact model that mhlb_update_student expects back.',
+        'the dropdown options for each. Its `data` is the exact model that mhlb_update_student expects back.' + UNTRUSTED,
       annotations: toolAnnotations({ title: 'Get student form', openWorld: true }),
       inputSchema: z.object({ studentId: PositiveInt.describe('Student id from mhlb_list_students.') }),
     },
-    async ({ studentId }) => minifiedResult(await client.get('/parent/editChild', { childId: studentId })),
+    async ({ studentId }) => untrustedRead(await client.get('/parent/editChild', { childId: studentId })),
   );
 
   server.registerTool(
@@ -57,11 +57,11 @@ export function registerStudentTools(server: McpServer, client: MhlbClient): voi
     {
       description:
         'Get a blank student profile plus the school/grade/teacher dropdown options, ready to fill in and ' +
-        'pass to mhlb_create_student.',
+        'pass (its `data`) to mhlb_create_student.' + UNTRUSTED,
       annotations: toolAnnotations({ title: 'New student form', openWorld: true }),
       inputSchema: z.object({}),
     },
-    async () => minifiedResult(await client.get('/parent/createChild')),
+    async () => untrustedRead(await client.get('/parent/createChild')),
   );
 
   server.registerTool(
