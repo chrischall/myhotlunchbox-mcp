@@ -1,4 +1,11 @@
-import { EdgeBlockedError, McpToolError, detectEdgeBlock, truncateErrorMessage } from '@chrischall/mcp-utils';
+import {
+  EdgeBlockedError,
+  McpToolError,
+  RateLimitError,
+  UnreachableError,
+  detectEdgeBlock,
+  truncateErrorMessage,
+} from '@chrischall/mcp-utils';
 import { TokenManager } from '@chrischall/mcp-utils/session';
 import { API_PREFIX, OAUTH_SCOPE, type MhlbConfig } from './config.js';
 import { createTokenCache, reportCacheWriteFailure } from './token-cache.js';
@@ -145,6 +152,15 @@ export class MhlbAuth {
           path: `${API_PREFIX}/auth/login`,
         });
       }
+      // A throttle or an outage never judged the password either. Only a 4xx
+      // from the token endpoint itself is a verdict on the credential; a 429,
+      // a 5xx or a gateway page must not read as "rejected the sign-in",
+      // which tells the parent to change a working password and not retry.
+      if (res.status === 429) {
+        const retryAfter = Number(res.headers.get('retry-after'));
+        throw new RateLimitError('My Hot Lunchbox', Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined);
+      }
+      if (res.status >= 500) throw new UnreachableError('My Hot Lunchbox', res.status);
       let parsed: TokenErrorResponse | null = null;
       try {
         parsed = JSON.parse(raw) as TokenErrorResponse;

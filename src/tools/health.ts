@@ -1,4 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/server';
+import { RateLimitError, UnreachableError } from '@chrischall/mcp-utils';
 import { registerCredentialHealthcheckTool } from '@chrischall/mcp-utils/healthcheck';
 import type { MhlbClient } from '../client.js';
 import { loadConfig, type MhlbConfig } from '../config.js';
@@ -27,6 +28,24 @@ export function classifyMhlbError(err: unknown): { kind: string; hint?: string }
   const msg = err instanceof Error ? err.message : String(err);
 
   if (msg.includes(NOT_CONFIGURED)) return { kind: 'no_credential' };
+  // Throttled or down (the token endpoint included): the credential was never
+  // judged, so nothing here may point at the password.
+  if (err instanceof RateLimitError) {
+    return {
+      kind: 'rate_limited',
+      hint:
+        'My Hot Lunchbox is rate-limiting requests, so the credential was never tested. ' +
+        'Wait before trying again; the saved sign-in details are not the problem.',
+    };
+  }
+  if (err instanceof UnreachableError) {
+    return {
+      kind: 'unreachable',
+      hint:
+        'My Hot Lunchbox answered with a server error, so the credential was never tested. ' +
+        'This is an outage on their side — try again later.',
+    };
+  }
   // The host is unreachable, or MYHOTLUNCHBOX_BASE_URL points somewhere wrong.
   // Nothing here says the credential is bad — do not send anyone to change it.
   if (msg.includes('Could not reach My Hot Lunchbox')) {

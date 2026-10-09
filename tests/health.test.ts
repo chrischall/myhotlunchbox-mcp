@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { RateLimitError, UnreachableError } from '@chrischall/mcp-utils';
 import { createTestHarness, parseToolResult } from '@chrischall/mcp-utils/test';
 import type { MhlbClient } from '../src/client.js';
 import { registerHealthcheckTools } from '../src/tools/health.js';
@@ -75,6 +76,22 @@ describe('mhlb_healthcheck', () => {
     }).call();
     expect(out.error.kind).toBe('unreachable');
     expect(out.error.kind).not.toBe('credential_rejected');
+  });
+
+  it('reports a token-endpoint outage as unreachable, not as a rejected credential', async () => {
+    const out = await setup({}, async () => {
+      throw new UnreachableError('My Hot Lunchbox', 502);
+    }).call();
+    expect(out.error.kind).toBe('unreachable');
+    expect(out.hint).not.toMatch(/MYHOTLUNCHBOX_PASSWORD/);
+  });
+
+  it('reports a throttled sign-in as rate_limited, not as a rejected credential', async () => {
+    const out = await setup({}, async () => {
+      throw new RateLimitError('My Hot Lunchbox', 30);
+    }).call();
+    expect(out.error.kind).toBe('rate_limited');
+    expect(out.hint).not.toMatch(/MYHOTLUNCHBOX_PASSWORD/);
   });
 
   it('leaves an unrecognised failure to the helper defaults', async () => {

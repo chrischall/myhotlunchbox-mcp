@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { RateLimitError, UnreachableError } from '@chrischall/mcp-utils';
 import { MhlbAuth, scrubCredentials } from '../src/auth.js';
 import { jsonResponse, mockFetch, testConfig, tokenHandler, TEST_PASSWORD } from './helpers.js';
 
@@ -142,6 +143,23 @@ describe('MhlbAuth', () => {
     const err = await auth.withAuth(async () => jsonResponse({})).catch((e: Error) => e);
 
     expect((err as Error).message).toContain('Could not reach My Hot Lunchbox');
+  });
+
+  it.each([
+    ['a 429', () => jsonResponse({ error: 'too_many_requests' }, 429, { 'retry-after': '30' }), RateLimitError],
+    ['a 502 gateway page', () => new Response('<html>Bad Gateway</html>', { status: 502 }), UnreachableError],
+    ['a 503', () => jsonResponse({ error: 'server_error' }, 503), UnreachableError],
+  ])('does not report %s from the token endpoint as a rejected sign-in', async (_label, failure, Expected) => {
+    const fetchImpl = mockFetch([(url) => (url.endsWith('/api/auth/login') ? failure() : undefined)]);
+
+    const auth = new MhlbAuth(testConfig(), fetchImpl);
+    const err = await auth.withAuth(async () => jsonResponse({})).catch((e: Error) => e);
+
+    // An outage or a throttle says nothing about the password. Calling it a
+    // rejection sends the parent to change a working credential and warns
+    // them off retrying.
+    expect(err).toBeInstanceOf(Expected);
+    expect((err as Error).message).not.toContain('rejected the sign-in');
   });
 
   it('isAuthenticated stays false when the first sign-in is rejected', async () => {
