@@ -5,6 +5,7 @@ import {
   UnreachableError,
   detectEdgeBlock,
   truncateErrorMessage,
+  withAmbientCancellation,
 } from '@chrischall/mcp-utils';
 import { TokenManager } from '@chrischall/mcp-utils/session';
 import { API_PREFIX, OAUTH_SCOPE, type MhlbConfig } from './config.js';
@@ -28,6 +29,25 @@ interface TokenErrorResponse {
 const DEFAULT_TOKEN_LIFETIME_S = 3600;
 
 export type FetchLike = typeof fetch;
+
+/** Default per-request timeout for the API and the token endpoint. */
+export const DEFAULT_TIMEOUT_MS = 30_000;
+
+/**
+ * The signal every upstream fetch carries: a timeout of its own, combined with
+ * the running tool call's cancellation (made ambient by mcp-utils' server
+ * wrapper), so a hung upstream cannot hang the tool call and a cancelled call
+ * stops waiting.
+ */
+export function requestSignal(timeoutMs: number): AbortSignal {
+  // withAmbientCancellation returns `own` unchanged when there is no ambient
+  // signal, so with an own signal in hand it is never undefined.
+  return withAmbientCancellation(AbortSignal.timeout(timeoutMs)) as AbortSignal;
+}
+
+/** Whether a fetch rejection was our own timeout firing (not the caller cancelling). */
+export const isTimeout = (err: unknown): boolean =>
+  typeof err === 'object' && err !== null && (err as { name?: unknown }).name === 'TimeoutError';
 
 /**
  * The token endpoint answered with an error. Carries the OAuth `error` code so
@@ -95,6 +115,7 @@ export class MhlbAuth {
   constructor(
     private readonly config: MhlbConfig,
     private readonly fetchImpl: FetchLike = fetch,
+    private readonly timeoutMs: number = DEFAULT_TIMEOUT_MS,
   ) {}
 
   /** Credentials are checked lazily so the server still boots without them. */
@@ -144,6 +165,7 @@ export class MhlbAuth {
    */
   private async postGrant(form: Record<string, string>): Promise<TokenResponse> {
     const { password } = this.config;
+    const signal = requestSignal(this.timeoutMs);
     let res: Response;
     try {
       res = await this.fetchImpl(this.tokenUrl(), {
@@ -153,8 +175,18 @@ export class MhlbAuth {
           accept: 'application/json',
         },
         body: new URLSearchParams(form).toString(),
+        signal,
       });
     } catch (cause) {
+      if (isTimeout(cause)) {
+        throw new McpToolError(
+          `My Hot Lunchbox sign-in timed out after ${Math.round(this.timeoutMs / 1000)}s.`,
+          { hint: 'The sign-in endpoint is slow or down; the credential was never judged. Try again later.', cause },
+        );
+      }
+      // The caller cancelled: let its own reason through rather than calling
+      // it a connectivity problem.
+      if (signal.aborted) throw cause;
       throw new McpToolError(
         `Could not reach My Hot Lunchbox at ${this.config.baseUrl}.`,
         { hint: 'Check network connectivity, or override MYHOTLUNCHBOX_BASE_URL if the app has moved.', cause },
