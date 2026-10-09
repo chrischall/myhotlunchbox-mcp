@@ -90,3 +90,19 @@ describe('manifest tool roster', () => {
     }
   });
 });
+
+describe('.mcpb manifest', () => {
+  const manifest = read<{
+    server: { mcp_config: { env: Record<string, string> } };
+    user_config: Record<string, { type: string; required?: boolean; default?: unknown }>;
+  }>('manifest.json');
+
+  // Without a field for it, a Claude Desktop install could never choose where
+  // the print tools write their PDFs.
+  it('exposes the report output directory as an optional user setting', () => {
+    const entry = Object.entries(manifest.server.mcp_config.env).find(([k]) => k === 'MYHOTLUNCHBOX_OUTPUT_DIR');
+    expect(entry).toBeDefined();
+    const key = /\$\{user_config\.(\w+)\}/.exec(entry![1])?.[1];
+    expect(key && manifest.user_config[key]).toMatchObject({ type: 'directory', required: false });
+  });
+});

@@ -72,8 +72,9 @@ the full code.
 **Reports** — `mhlb_print_calendar`, `mhlb_print_orders`,
 `mhlb_print_transaction`. These return real PDFs; each writes the file and
 returns its path, or the bytes inline with `inline: true`. Set
-`MYHOTLUNCHBOX_OUTPUT_DIR` to choose where they land (defaults to the working
-directory); existing files are never overwritten.
+`MYHOTLUNCHBOX_OUTPUT_DIR` (the "Report folder" setting in the `.mcpb`) to
+choose where they land; it defaults to `reports/` under `MCP_DATA_DIR` when the
+host sets one, else `~/Downloads`. Existing files are never overwritten.
 
 ## Confirmations
 

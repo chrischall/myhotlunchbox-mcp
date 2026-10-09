@@ -60,8 +60,15 @@ describe('midpoint', () => {
 });
 
 describe('outputDir', () => {
-  it('defaults to the working directory', () => {
-    expect(outputDir({})).toBe(process.cwd());
+  // Not process.cwd(): an MCP host commonly spawns the server with cwd "/",
+  // which is read-only, so the default call failed after the report had
+  // already been generated upstream.
+  it("defaults to the user's Downloads folder, not the working directory", () => {
+    expect(outputDir({ HOME: '/home/u' })).toBe('/home/u/Downloads');
+  });
+
+  it('uses a reports folder under MCP_DATA_DIR when the host provides one', () => {
+    expect(outputDir({ HOME: '/home/u', MCP_DATA_DIR: '/data' })).toBe('/data/reports');
   });
 
   it('honours MYHOTLUNCHBOX_OUTPUT_DIR', () => {
@@ -308,6 +315,24 @@ describe('report tools', () => {
         total: 12,
         isCreditType: false,
       });
+    } finally {
+      await h.close();
+    }
+  });
+
+  // The PDF contains child names and receipts; a bad filename must be refused
+  // BEFORE the server is asked to generate one, not after.
+  it.each([
+    ['mhlb_print_calendar', { startDate: '2026-09-01', endDate: '2026-09-30', studentIds: [7] }],
+    ['mhlb_print_orders', { date: '2026-09-14', studentIds: [7] }],
+    ['mhlb_print_transaction', { transaction: { id: 5 } }],
+  ])('%s validates the filename before generating the report upstream', async (name, args) => {
+    process.env.MYHOTLUNCHBOX_OUTPUT_DIR = scratch();
+    const { h, fetchSpy } = await harness();
+    try {
+      const result = await h.callTool(name, { ...args, filename: '../escaped.pdf' });
+      expect(result.isError).toBe(true);
+      expect(fetchSpy.mock.calls.filter((c) => String(c[0]).includes('/parentReports/'))).toHaveLength(0);
     } finally {
       await h.close();
     }
