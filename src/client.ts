@@ -84,19 +84,23 @@ export class MhlbClient {
   }
 
   /**
-   * Run one upstream fetch under a timeout combined with the tool call's own
-   * cancellation. A timeout becomes an actionable error; a cancellation
-   * propagates with the caller's reason.
+   * Run one upstream fetch, and the read of its body, under a timeout combined
+   * with the tool call's own cancellation. The same signal governs the body
+   * stream, so a body that stalls after the headers arrive times out too — and
+   * is reported the same way. A timeout becomes an actionable error; a
+   * cancellation propagates with the caller's reason.
    */
-  private async timed(
+  private async timed<R>(
     method: string,
     path: string,
     timeoutMs: number,
     send: (accessToken: string, signal: AbortSignal) => Promise<Response>,
-  ): Promise<Response> {
+    read: (res: Response) => Promise<R>,
+  ): Promise<R> {
     try {
       // A fresh signal per attempt, so the one replay after a 401 gets its own budget.
-      return await this.auth.withAuth((accessToken) => send(accessToken, requestSignal(timeoutMs)));
+      const res = await this.auth.withAuth((accessToken) => send(accessToken, requestSignal(timeoutMs)));
+      return await read(res);
     } catch (err) {
       if (!isTimeout(err)) throw err;
       throw new McpToolError(
@@ -124,20 +128,23 @@ export class MhlbClient {
     const target = this.url(path, opts.query);
     const hasBody = opts.body !== undefined;
 
-    const res = await this.timed(method, path, this.timeoutMs, (accessToken, signal) =>
-      this.auth.fetch(target, {
-        method,
-        headers: {
-          authorization: `Bearer ${accessToken}`,
-          accept: 'application/json',
-          ...(hasBody ? { 'content-type': 'application/json' } : {}),
-        },
-        ...(hasBody ? { body: JSON.stringify(opts.body) } : {}),
-        signal,
-      }),
+    return this.timed(
+      method,
+      path,
+      this.timeoutMs,
+      (accessToken, signal) =>
+        this.auth.fetch(target, {
+          method,
+          headers: {
+            authorization: `Bearer ${accessToken}`,
+            accept: 'application/json',
+            ...(hasBody ? { 'content-type': 'application/json' } : {}),
+          },
+          ...(hasBody ? { body: JSON.stringify(opts.body) } : {}),
+          signal,
+        }),
+      (res) => this.parse<T>(res, method, path),
     );
-
-    return this.parse<T>(res, method, path);
   }
 
   /**
@@ -231,19 +238,27 @@ export class MhlbClient {
     body: unknown,
   ): Promise<{ bytes: Uint8Array; contentType: string }> {
     const target = this.url(path);
-    const res = await this.timed('POST', path, this.reportTimeoutMs, (accessToken, signal) =>
-      this.auth.fetch(target, {
-        method: 'POST',
-        headers: {
-          authorization: `Bearer ${accessToken}`,
-          accept: 'application/pdf, application/octet-stream, */*',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify(body),
-        signal,
-      }),
+    return this.timed(
+      'POST',
+      path,
+      this.reportTimeoutMs,
+      (accessToken, signal) =>
+        this.auth.fetch(target, {
+          method: 'POST',
+          headers: {
+            authorization: `Bearer ${accessToken}`,
+            accept: 'application/pdf, application/octet-stream, */*',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify(body),
+          signal,
+        }),
+      (res) => this.readPdf(res, path),
     );
+  }
 
+  /** Read and validate a report response body. */
+  private async readPdf(res: Response, path: string): Promise<{ bytes: Uint8Array; contentType: string }> {
     if (!res.ok) {
       this.classify(
         res,

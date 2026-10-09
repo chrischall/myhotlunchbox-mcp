@@ -162,6 +162,40 @@ describe('request timeout and cancellation', () => {
     expect(err.hint).not.toMatch(/may still have/i);
   });
 
+  /** Headers arrive at once, but the body never finishes until the signal aborts. */
+  const stallingBodyFetch = (stallOn: (url: string) => boolean) =>
+    (async (input: RequestInfo | URL, init: RequestInit = {}) => {
+      const url = String(input);
+      const token = tokenHandler()(url);
+      if (token) return token;
+      if (!stallOn(url)) return jsonResponse({ ok: true });
+      const signal = init.signal!;
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('%PDF'));
+          signal.addEventListener('abort', () => controller.error(signal.reason), { once: true });
+        },
+      });
+      return new Response(body, { status: 200, headers: { 'content-type': 'application/json' } });
+    }) as unknown as typeof fetch;
+
+  it('times out a JSON body that stalls after the headers arrive', async () => {
+    const client = new MhlbClient(testConfig(), stallingBodyFetch((u) => u.includes('/payment/checkout')), {
+      timeoutMs: 20,
+    });
+    const err = (await client.write('/payment/checkout', { orderIds: [1] }).catch((e) => e)) as McpToolError;
+    expect(err.message).toMatch(/did not answer within/);
+    expect(err.hint).toMatch(/may still have/i);
+  });
+
+  it('times out a report body that stalls after the headers arrive', async () => {
+    const client = new MhlbClient(testConfig(), stallingBodyFetch((u) => u.includes('/parentReports/')), {
+      reportTimeoutMs: 20,
+    });
+    const err = (await client.writeBinary('/parentReports/printCalendar', {}).catch((e) => e)) as McpToolError;
+    expect(err.message).toMatch(/did not answer within/);
+  });
+
   it('times out a sign-in the token endpoint never answers', async () => {
     const client = new MhlbClient(testConfig(), hangingFetch((u) => u.endsWith('/api/auth/login')), {
       timeoutMs: 20,
