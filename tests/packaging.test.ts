@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -66,6 +66,22 @@ describe('version sync', () => {
     const m = read<{ metadata: { version: string }; plugins: { version: string }[] }>('.claude-plugin/marketplace.json');
     expect(m.metadata.version).toBe(pkg.version);
     for (const p of m.plugins) expect(p.version).toBe(pkg.version);
+  });
+});
+
+describe('Claude Code plugin manifest', () => {
+  const plugin = read<Record<string, unknown>>('.claude-plugin/plugin.json');
+
+  // Claude Code reads `mcpServers`; an `mcp` key is ignored at load time.
+  // It only ever "worked" because ./.mcp.json is the default — copy it with
+  // any other path and the plugin installs with no MCP server at all.
+  it('declares its MCP config under mcpServers, not mcp', () => {
+    expect(plugin).not.toHaveProperty('mcp');
+    expect(plugin.mcpServers).toBe('./.mcp.json');
+  });
+
+  it('points mcpServers at a file that exists', () => {
+    expect(existsSync(join(root, plugin.mcpServers as string))).toBe(true);
   });
 });
 
