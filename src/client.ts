@@ -218,6 +218,17 @@ export class MhlbClient {
     return { bytes, contentType };
   }
 
+  /**
+   * The account every confirmation token is bound to: the sign-in username,
+   * normalised the way the server and the token cache treat it. Without it, a
+   * token minted in one parent's child verifies in another's under a shared
+   * MCP_CONFIRM_SECRET for the same target and payload. `undefined` (no
+   * credentials) binds as absent; such a call cannot sign in anyway.
+   */
+  get account(): string | undefined {
+    return this.config.username?.trim().toLowerCase() || undefined;
+  }
+
   /** Drop the in-process session (used by the session tool and by tests). */
   resetSession(): void {
     this.auth.reset();

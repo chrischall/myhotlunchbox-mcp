@@ -167,6 +167,44 @@ describe('confirmation gating', () => {
     }
   });
 
+  it('refuses a token minted for a different account, even under a shared MCP_CONFIRM_SECRET', async () => {
+    // Two children of one host share MCP_CONFIRM_SECRET. A checkout approved
+    // for one parent must not verify for another parent paying the same
+    // orderIds — the account the write runs as is part of what was approved.
+    process.env.MCP_CONFIRM_SECRET = 'shared-secret-for-every-child-0123456789';
+    const spyFor = () =>
+      vi.fn(async (input: RequestInfo | URL) => tokenHandler()(String(input)) ?? jsonResponse({ ok: true }));
+    const harnessFor = async (username: string, spy: ReturnType<typeof spyFor>) => {
+      const client = new MhlbClient(testConfig({ username }), spy as unknown as typeof fetch);
+      return createTestHarness((server) => {
+        for (const register of ALL_REGISTRARS) register(server, client);
+      });
+    };
+    const args = { orderIds: [1], expectedTotal: 10, idempotencyKey: 'k-1' };
+    const spyA = spyFor();
+    const spyB = spyFor();
+    const a = await harnessFor('parent-a@example.com', spyA);
+    const b = await harnessFor('parent-b@example.com', spyB);
+    try {
+      const first = parseToolResult<PhaseOne>(await a.callTool('mhlb_checkout', args));
+      const crossed = await b.callTool('mhlb_checkout', { ...args, confirmToken: first.confirmToken });
+      expect(crossed.isError).toBe(true);
+      expect(spyB).not.toHaveBeenCalled();
+
+      // Same account (case/whitespace aside) still verifies.
+      const c = await harnessFor('  Parent-A@Example.com ', spyFor());
+      try {
+        const ok = await c.callTool('mhlb_checkout', { ...args, confirmToken: first.confirmToken });
+        expect(ok.isError).toBeFalsy();
+      } finally {
+        await c.close();
+      }
+    } finally {
+      await a.close();
+      await b.close();
+    }
+  });
+
   it('refuses a token when an argument changed between the phases (DRAFT_CHANGED)', async () => {
     const { harness, fetchSpy } = await harnessWithSpy();
     try {
