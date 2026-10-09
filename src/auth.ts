@@ -106,9 +106,10 @@ export class MhlbAuth {
    */
   private credentialRejected: GrantRejectedError | null = null;
   /**
-   * Set once the TokenManager has actually handed out an access token (from
-   * the cache, a login or a refresh). The manager itself exists before any
-   * sign-in has run, so its presence says nothing about a session.
+   * Set once the API has accepted an access token (from the cache, a login or
+   * a refresh) — i.e. answered something other than 401. The manager itself
+   * exists before any sign-in has run, so its presence says nothing about a
+   * session.
    */
   private sessionEstablished = false;
 
@@ -345,9 +346,12 @@ export class MhlbAuth {
    */
   async withAuth(call: (accessToken: string) => Promise<Response>): Promise<Response> {
     const manager = await this.ensureManager();
-    return manager.withAuth((accessToken) => {
-      this.sessionEstablished = true;
-      return call(accessToken);
+    return manager.withAuth(async (accessToken) => {
+      const res = await call(accessToken);
+      // Only a token the API accepted proves a session; a 401 (even after the
+      // one refresh) means the sign-in produced nothing usable.
+      if (res.status !== 401) this.sessionEstablished = true;
+      return res;
     });
   }
 

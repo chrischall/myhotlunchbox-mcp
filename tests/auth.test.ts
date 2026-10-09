@@ -200,6 +200,16 @@ describe('MhlbAuth', () => {
     expect(auth.isAuthenticated).toBe(false);
   });
 
+  it('isAuthenticated stays false when the API refuses every token it is handed', async () => {
+    // A token is minted (and refreshed once on the 401), but the API accepts
+    // neither: no sign-in has actually produced a working session.
+    const fetchImpl = mockFetch([tokenHandler()]);
+    const auth = new MhlbAuth(testConfig(), fetchImpl);
+    const res = await auth.withAuth(async () => new Response('', { status: 401 }));
+    expect(res.status).toBe(401);
+    expect(auth.isAuthenticated).toBe(false);
+  });
+
   it('reset() forces the next call to sign in again', async () => {
     let logins = 0;
     const fetchImpl = mockFetch([
