@@ -101,6 +101,17 @@ retry reuses it.
 
 `captured-writes.json` is gitignored — it holds real student and order ids.
 
+## Third-party text is framed as untrusted
+
+Reads that return school-, vendor- or menu-authored text go through
+`untrustedRead` in `src/tools/_shared.ts` (mcp-utils' `untrustedResult`, with a
+note naming the school and its vendors) and append `UNTRUSTED` to their
+description. The payload is always nested under `data`, never spread beside the
+markers, so a read-modify-write form hands back a model with no
+`untrusted_content`/`note` keys mixed in — upstream models have their own
+`note`-like fields, so stripping keys on the way back in is not an option.
+`tests/read-tools.test.ts` pins which reads are framed.
+
 ## Writes are confirmed through `confirmWrite`
 
 Every mutating tool takes `confirmToken: confirmTokenParam`, calls
