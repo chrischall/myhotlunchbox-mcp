@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.2.6](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.2.5...v1.2.6) (2026-10-09)
+
+
+### Bug Fixes
+
+* annotate tools truthfully and sync manifests with the served tools ([#119](https://github.com/chrischall/myhotlunchbox-mcp/issues/119)) ([2f665a9](https://github.com/chrischall/myhotlunchbox-mcp/commit/2f665a9e2a9a79b1933da998028b5032c601fbd1))
+* declare the plugin MCP config under the mcpServers key Claude Code reads ([#120](https://github.com/chrischall/myhotlunchbox-mcp/issues/120)) ([9898eea](https://github.com/chrischall/myhotlunchbox-mcp/commit/9898eeae1cf11278efad122e4264c67c7d7bc14c))
+* **deps:** bump source-map-js from 1.2.1 to 1.2.2 in the security group across 1 directory ([#118](https://github.com/chrischall/myhotlunchbox-mcp/issues/118)) ([63524d7](https://github.com/chrischall/myhotlunchbox-mcp/commit/63524d78349b69dd5b75229a0e72fc4640e10779))
+* **deps:** update @chrischall/mcp-utils to 3.0.0 ([#117](https://github.com/chrischall/myhotlunchbox-mcp/issues/117)) ([75e74fa](https://github.com/chrischall/myhotlunchbox-mcp/commit/75e74fa6c495a4e3d331dda12bb07f61bb643a2b))
+* resolve low-severity audit findings ([#113](https://github.com/chrischall/myhotlunchbox-mcp/issues/113)) ([daa510b](https://github.com/chrischall/myhotlunchbox-mcp/commit/daa510b7f228c7a224fb5a0b86e729c71429bc0c))
+* **tools:** print receipts from a transaction id and frame vendor text as untrusted ([#115](https://github.com/chrischall/myhotlunchbox-mcp/issues/115)) ([72894e1](https://github.com/chrischall/myhotlunchbox-mcp/commit/72894e19bab8720fdf2ef3e87467c2761201fe07))
+
 ## [1.2.5](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.2.4...v1.2.5) (2026-10-07)
 
 
