@@ -78,6 +78,12 @@ export class MhlbAuth {
    * {@link reset} (mhlb_session_reset) or a restart.
    */
   private credentialRejected: GrantRejectedError | null = null;
+  /**
+   * Set once the TokenManager has actually handed out an access token (from
+   * the cache, a login or a refresh). The manager itself exists before any
+   * sign-in has run, so its presence says nothing about a session.
+   */
+  private sessionEstablished = false;
 
   constructor(
     private readonly config: MhlbConfig,
@@ -266,7 +272,10 @@ export class MhlbAuth {
    */
   async withAuth(call: (accessToken: string) => Promise<Response>): Promise<Response> {
     const manager = await this.ensureManager();
-    return manager.withAuth(call);
+    return manager.withAuth((accessToken) => {
+      this.sessionEstablished = true;
+      return call(accessToken);
+    });
   }
 
   /**
@@ -282,6 +291,7 @@ export class MhlbAuth {
     this.manager = null;
     this.loginInFlight = null;
     this.credentialRejected = null;
+    this.sessionEstablished = false;
     createTokenCache()?.clear();
   }
 
@@ -290,8 +300,8 @@ export class MhlbAuth {
     return this.fetchImpl(url, init);
   }
 
-  /** Whether a session has been established in this process. */
+  /** Whether a sign-in has actually produced an access token in this process. */
   get isAuthenticated(): boolean {
-    return this.manager !== null;
+    return this.sessionEstablished;
   }
 }

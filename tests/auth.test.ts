@@ -144,6 +144,21 @@ describe('MhlbAuth', () => {
     expect((err as Error).message).toContain('Could not reach My Hot Lunchbox');
   });
 
+  it('isAuthenticated stays false when the first sign-in is rejected', async () => {
+    const fetchImpl = mockFetch([
+      (url) =>
+        url.endsWith('/api/auth/login')
+          ? jsonResponse({ error: 'invalid_grant', error_description: 'bad password' }, 400)
+          : undefined,
+    ]);
+
+    const auth = new MhlbAuth(testConfig(), fetchImpl);
+    expect(auth.isAuthenticated).toBe(false);
+    await expect(auth.withAuth(async () => jsonResponse({}))).rejects.toThrow('rejected the sign-in');
+    // No session was ever established: mhlb_session_reset must not report one.
+    expect(auth.isAuthenticated).toBe(false);
+  });
+
   it('reset() forces the next call to sign in again', async () => {
     let logins = 0;
     const fetchImpl = mockFetch([
