@@ -108,5 +108,7 @@ afterwards to confirm it landed. A `200` is not proof.
 ## Prefer the MCP when it is available
 
 `myhotlunchbox-mcp` wraps all of this with typed tools and a confirmation step
-for every mutation — a prompt, or a preview plus a single-use `confirmToken`.
+for every mutation — a prompt where the client can show one (unless the server
+sets `MCP_CONFIRM_ELICITATION=off`), otherwise a preview plus a single-use
+`confirmToken`.
 Use this skill when the MCP is not installed, or inside a script.
