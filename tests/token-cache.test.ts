@@ -80,6 +80,10 @@ describe('credential binding', () => {
     ).not.toBeNull();
   });
 
+  it('is disabled without credentials to bind to', () => {
+    expect(createTokenCache({ MCP_DATA_DIR: dir, MYHOTLUNCHBOX_TOKEN_CACHE: 'true' })).toBeNull();
+  });
+
   it('matches the username case-insensitively', () => {
     createTokenCache(pw())!.save(token());
     expect(createTokenCache(pw({ MYHOTLUNCHBOX_USERNAME: '  Eater@Example.COM ' }))!.load()).not.toBeNull();
