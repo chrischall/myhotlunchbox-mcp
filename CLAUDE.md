@@ -62,9 +62,12 @@ Tools for them were removed; don't re-add them from the extraction.
 `studentIds` — same as `printOrders`. Neither has an "all students" default, so
 both schemas require `.min(1)`.
 
-`mhlb_print_transaction` wants the record from `/event/transactionDetails`, not
-a row from `/event/transactionsList`. Both render, but they are different shapes
-and different documents.
+`/parentReports/printTransactions` wants the record from
+`/event/transactionDetails`, not a row from `/event/transactionsList`. Both
+render, but they are different shapes and different documents. So
+`mhlb_print_transaction` takes a `transactionId` and fetches that record itself:
+the body is the upstream record plus `isCreditType`, never a model-supplied
+object (fleet-audit#872). Do not reopen a `transaction` record input.
 
 Re-run `node scripts/verify-reads.mjs` (needs `.env`) after touching any read
 path — it drives all 20 read tools through the built client, measures coverage
