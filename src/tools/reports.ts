@@ -1,4 +1,5 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
 import { McpToolError, readEnvVar, toolAnnotations, PositiveInt, IsoDate } from '@chrischall/mcp-utils';
 import { z } from 'zod';
@@ -16,10 +17,20 @@ import { minifiedResult } from './_shared.js';
 
 const MAX_INLINE_BYTES = 750_000;
 
-/** Where PDFs land. `MYHOTLUNCHBOX_OUTPUT_DIR`, else the working directory. */
+/**
+ * Where PDFs land: `MYHOTLUNCHBOX_OUTPUT_DIR`, else `reports/` under the
+ * host-provided `MCP_DATA_DIR`, else the user's Downloads folder.
+ *
+ * Never the working directory: hosts commonly spawn the server with cwd `/`,
+ * which is read-only, so the default call failed only after the report had
+ * already been generated upstream.
+ */
 export function outputDir(env: NodeJS.ProcessEnv = process.env): string {
   const configured = readEnvVar('MYHOTLUNCHBOX_OUTPUT_DIR', { env });
-  return configured ? resolve(configured) : process.cwd();
+  if (configured) return resolve(configured);
+  const dataDir = readEnvVar('MCP_DATA_DIR', { env });
+  if (dataDir) return join(resolve(dataDir), 'reports');
+  return join(readEnvVar('HOME', { env }) ?? homedir(), 'Downloads');
 }
 
 /** Candidate names in order: `r.pdf`, `r (2).pdf`, `r (3).pdf`, … */
@@ -149,13 +160,16 @@ export function registerReportTools(server: McpServer, client: MhlbClient): void
       }),
     },
     async ({ startDate, endDate, studentIds, filename, inline }) => {
+      // Validated before the upstream generates anything: the PDF carries
+      // child names, so a refused name must not cost a rendered report.
+      const name = safeName(filename ?? 'Lunch Calendar.pdf');
       const { bytes, contentType } = await client.writeBinary('/parentReports/printCalendar', {
         start: startDate,
         end: endDate,
         middle: midpoint(startDate, endDate),
         studentIds,
       });
-      return deliver(bytes, contentType, safeName(filename ?? 'Lunch Calendar.pdf'), inline ?? false);
+      return deliver(bytes, contentType, name, inline ?? false);
     },
   );
 
@@ -182,12 +196,13 @@ export function registerReportTools(server: McpServer, client: MhlbClient): void
       }),
     },
     async ({ date, orderStatus, studentIds, filename, inline }) => {
+      const name = safeName(filename ?? `Orders Details ${date}.pdf`);
       const { bytes, contentType } = await client.writeBinary('/parentReports/printOrders', {
         orderStatus,
         eventDate: date,
         studentIds,
       });
-      return deliver(bytes, contentType, safeName(filename ?? `Orders Details ${date}.pdf`), inline ?? false);
+      return deliver(bytes, contentType, name, inline ?? false);
     },
   );
 
@@ -208,11 +223,12 @@ export function registerReportTools(server: McpServer, client: MhlbClient): void
       }),
     },
     async ({ transaction, isCreditType, filename, inline }) => {
+      const name = safeName(filename ?? 'Transaction.pdf');
       const { bytes, contentType } = await client.writeBinary('/parentReports/printTransactions', {
         ...transaction,
         isCreditType: isCreditType ?? false,
       });
-      return deliver(bytes, contentType, safeName(filename ?? 'Transaction.pdf'), inline ?? false);
+      return deliver(bytes, contentType, name, inline ?? false);
     },
   );
 }

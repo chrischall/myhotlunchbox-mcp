@@ -37,7 +37,7 @@ export function registerCheckoutTools(server: McpServer, client: MhlbClient): vo
         tool: 'mhlb_init_checkout',
         action: 'checkout.init',
         summary: 'Initialise checkout',
-        account: undefined,
+        account: client.account,
         target: args.orderIds.join(','),
         request: { method: 'POST', path: '/payment/initCheckout', body },
         confirmToken,
@@ -97,7 +97,7 @@ export function registerCheckoutTools(server: McpServer, client: MhlbClient): vo
         tool: 'mhlb_checkout',
         action: 'checkout.pay',
         summary: 'Pay for cart',
-        account: undefined,
+        account: client.account,
         target: args.orderIds.join(','),
         request: {
           method: 'POST',

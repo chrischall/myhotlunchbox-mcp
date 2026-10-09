@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { RateLimitError, UnreachableError } from '@chrischall/mcp-utils';
 import { MhlbAuth, scrubCredentials } from '../src/auth.js';
 import { jsonResponse, mockFetch, testConfig, tokenHandler, TEST_PASSWORD } from './helpers.js';
 
@@ -142,6 +143,71 @@ describe('MhlbAuth', () => {
     const err = await auth.withAuth(async () => jsonResponse({})).catch((e: Error) => e);
 
     expect((err as Error).message).toContain('Could not reach My Hot Lunchbox');
+  });
+
+  it.each([
+    ['a 429', () => jsonResponse({ error: 'too_many_requests' }, 429, { 'retry-after': '30' }), RateLimitError],
+    ['a 502 gateway page', () => new Response('<html>Bad Gateway</html>', { status: 502 }), UnreachableError],
+    ['a 503', () => jsonResponse({ error: 'server_error' }, 503), UnreachableError],
+  ])('does not report %s from the token endpoint as a rejected sign-in', async (_label, failure, Expected) => {
+    const fetchImpl = mockFetch([(url) => (url.endsWith('/api/auth/login') ? failure() : undefined)]);
+
+    const auth = new MhlbAuth(testConfig(), fetchImpl);
+    const err = await auth.withAuth(async () => jsonResponse({})).catch((e: Error) => e);
+
+    // An outage or a throttle says nothing about the password. Calling it a
+    // rejection sends the parent to change a working credential and warns
+    // them off retrying.
+    expect(err).toBeInstanceOf(Expected);
+    expect((err as Error).message).not.toContain('rejected the sign-in');
+  });
+
+  it.each([
+    ['plain http to a remote host', 'http://ordernow.myhotlunchbox.com'],
+    ['a non-http scheme', 'ftp://ordernow.myhotlunchbox.com'],
+    ['an unparseable value', 'ordernow.myhotlunchbox.com'],
+  ])('refuses to send the password over %s', async (_label, baseUrl) => {
+    const fetchImpl = vi.fn(tokenHandler()) as unknown as typeof fetch;
+    const auth = new MhlbAuth(testConfig({ baseUrl }), fetchImpl);
+
+    const err = await auth.withAuth(async () => jsonResponse({})).catch((e: Error) => e);
+
+    expect((err as Error).message).toMatch(/MYHOTLUNCHBOX_BASE_URL/);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it.each(['http://127.0.0.1:8123', 'http://localhost:8123', 'http://[::1]:8123'])(
+    'allows plain http to loopback (%s), which the capture proxy uses',
+    async (baseUrl) => {
+      const fetchImpl = mockFetch([tokenHandler()]);
+      const auth = new MhlbAuth(testConfig({ baseUrl }), fetchImpl);
+      await expect(auth.withAuth(async () => jsonResponse({}))).resolves.toBeInstanceOf(Response);
+    },
+  );
+
+  it('isAuthenticated stays false when the first sign-in is rejected', async () => {
+    const fetchImpl = mockFetch([
+      (url) =>
+        url.endsWith('/api/auth/login')
+          ? jsonResponse({ error: 'invalid_grant', error_description: 'bad password' }, 400)
+          : undefined,
+    ]);
+
+    const auth = new MhlbAuth(testConfig(), fetchImpl);
+    expect(auth.isAuthenticated).toBe(false);
+    await expect(auth.withAuth(async () => jsonResponse({}))).rejects.toThrow('rejected the sign-in');
+    // No session was ever established: mhlb_session_reset must not report one.
+    expect(auth.isAuthenticated).toBe(false);
+  });
+
+  it('isAuthenticated stays false when the API refuses every token it is handed', async () => {
+    // A token is minted (and refreshed once on the 401), but the API accepts
+    // neither: no sign-in has actually produced a working session.
+    const fetchImpl = mockFetch([tokenHandler()]);
+    const auth = new MhlbAuth(testConfig(), fetchImpl);
+    const res = await auth.withAuth(async () => new Response('', { status: 401 }));
+    expect(res.status).toBe(401);
+    expect(auth.isAuthenticated).toBe(false);
   });
 
   it('reset() forces the next call to sign in again', async () => {

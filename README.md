@@ -31,7 +31,7 @@ That is the whole setup. The server performs a real server-side sign-in against
 the refresh token it receives — **no browser extension, no signed-in tab, no
 captured cookie**. Nothing is written to disk.
 
-`MYHOTLUNCHBOX_BASE_URL` overrides the app origin if it ever moves.
+`MYHOTLUNCHBOX_BASE_URL` overrides the app origin if it ever moves. It must be `https://` (plain `http://` is accepted only for `localhost`), and the token cache is bound to it, so changing it signs in again.
 
 The server boots without credentials so a host's install-time `tools/list` probe
 still works; the configuration error surfaces on the first tool call.
@@ -72,8 +72,9 @@ the full code.
 **Reports** — `mhlb_print_calendar`, `mhlb_print_orders`,
 `mhlb_print_transaction`. These return real PDFs; each writes the file and
 returns its path, or the bytes inline with `inline: true`. Set
-`MYHOTLUNCHBOX_OUTPUT_DIR` to choose where they land (defaults to the working
-directory); existing files are never overwritten.
+`MYHOTLUNCHBOX_OUTPUT_DIR` (the "Report folder" setting in the `.mcpb`) to
+choose where they land; it defaults to `reports/` under `MCP_DATA_DIR` when the
+host sets one, else `~/Downloads`. Existing files are never overwritten.
 
 ## Confirmations
 

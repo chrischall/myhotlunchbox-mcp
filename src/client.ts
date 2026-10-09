@@ -6,7 +6,14 @@ import {
   detectEdgeBlock,
   truncateErrorMessage,
 } from '@chrischall/mcp-utils';
-import { MhlbAuth, scrubCredentials, type FetchLike } from './auth.js';
+import {
+  DEFAULT_TIMEOUT_MS,
+  MhlbAuth,
+  isTimeout,
+  requestSignal,
+  scrubCredentials,
+  type FetchLike,
+} from './auth.js';
 import { API_PREFIX, loadConfig, type MhlbConfig } from './config.js';
 
 /** Query values the API accepts. `undefined` entries are dropped. */
@@ -42,6 +49,19 @@ export function buildQuery(query: Query | undefined): string {
 }
 
 /**
+ * How long the `/parentReports/print*` endpoints get. They render a PDF with
+ * wkhtmltopdf server-side, which is slower than any JSON read.
+ */
+export const DEFAULT_REPORT_TIMEOUT_MS = 120_000;
+
+export interface MhlbClientOptions {
+  /** Per-request timeout for JSON calls and the token endpoint. */
+  timeoutMs?: number;
+  /** Per-request timeout for the PDF report endpoints. */
+  reportTimeoutMs?: number;
+}
+
+/**
  * Thin client over the My Hot Lunchbox parent API.
  *
  * Deliberately not `createApiClient`: that helper only ever emits
@@ -53,9 +73,49 @@ export class MhlbClient {
   readonly config: MhlbConfig;
   private readonly auth: MhlbAuth;
 
-  constructor(config: MhlbConfig = loadConfig(), fetchImpl: FetchLike = fetch) {
+  private readonly timeoutMs: number;
+  private readonly reportTimeoutMs: number;
+
+  constructor(config: MhlbConfig = loadConfig(), fetchImpl: FetchLike = fetch, opts: MhlbClientOptions = {}) {
     this.config = config;
-    this.auth = new MhlbAuth(config, fetchImpl);
+    this.timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    this.reportTimeoutMs = opts.reportTimeoutMs ?? DEFAULT_REPORT_TIMEOUT_MS;
+    this.auth = new MhlbAuth(config, fetchImpl, this.timeoutMs);
+  }
+
+  /**
+   * Run one upstream fetch, and the read of its body, under a timeout combined
+   * with the tool call's own cancellation. The same signal governs the body
+   * stream, so a body that stalls after the headers arrive times out too — and
+   * is reported the same way. A timeout becomes an actionable error; a
+   * cancellation propagates with the caller's reason.
+   */
+  private async timed<R>(
+    method: string,
+    path: string,
+    timeoutMs: number,
+    send: (accessToken: string, signal: AbortSignal) => Promise<Response>,
+    read: (res: Response) => Promise<R>,
+  ): Promise<R> {
+    try {
+      // A fresh signal per attempt, so the one replay after a 401 gets its own budget.
+      const res = await this.auth.withAuth((accessToken) => send(accessToken, requestSignal(timeoutMs)));
+      return await read(res);
+    } catch (err) {
+      if (!isTimeout(err)) throw err;
+      throw new McpToolError(
+        `My Hot Lunchbox did not answer within ${Math.round(timeoutMs / 1000)}s for ${method} ${path} (timed out).`,
+        {
+          hint:
+            // Reports generate a document and change nothing, so they are reads here.
+            method === 'GET' || path.startsWith('/parentReports/')
+              ? 'The service is slow or down. Try again later.'
+              : 'The request was sent, so the change may still have gone through. Re-read the affected ' +
+                'records (or mhlb_list_transactions after a checkout) before retrying.',
+          cause: err,
+        },
+      );
+    }
   }
 
   /** Absolute URL for an API path (`/parent/childrenInfo` → `…/api/parent/childrenInfo`). */
@@ -68,19 +128,23 @@ export class MhlbClient {
     const target = this.url(path, opts.query);
     const hasBody = opts.body !== undefined;
 
-    const res = await this.auth.withAuth((accessToken) =>
-      this.auth.fetch(target, {
-        method,
-        headers: {
-          authorization: `Bearer ${accessToken}`,
-          accept: 'application/json',
-          ...(hasBody ? { 'content-type': 'application/json' } : {}),
-        },
-        ...(hasBody ? { body: JSON.stringify(opts.body) } : {}),
-      }),
+    return this.timed(
+      method,
+      path,
+      this.timeoutMs,
+      (accessToken, signal) =>
+        this.auth.fetch(target, {
+          method,
+          headers: {
+            authorization: `Bearer ${accessToken}`,
+            accept: 'application/json',
+            ...(hasBody ? { 'content-type': 'application/json' } : {}),
+          },
+          ...(hasBody ? { body: JSON.stringify(opts.body) } : {}),
+          signal,
+        }),
+      (res) => this.parse<T>(res, method, path),
     );
-
-    return this.parse<T>(res, method, path);
   }
 
   /**
@@ -174,18 +238,27 @@ export class MhlbClient {
     body: unknown,
   ): Promise<{ bytes: Uint8Array; contentType: string }> {
     const target = this.url(path);
-    const res = await this.auth.withAuth((accessToken) =>
-      this.auth.fetch(target, {
-        method: 'POST',
-        headers: {
-          authorization: `Bearer ${accessToken}`,
-          accept: 'application/pdf, application/octet-stream, */*',
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      }),
+    return this.timed(
+      'POST',
+      path,
+      this.reportTimeoutMs,
+      (accessToken, signal) =>
+        this.auth.fetch(target, {
+          method: 'POST',
+          headers: {
+            authorization: `Bearer ${accessToken}`,
+            accept: 'application/pdf, application/octet-stream, */*',
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify(body),
+          signal,
+        }),
+      (res) => this.readPdf(res, path),
     );
+  }
 
+  /** Read and validate a report response body. */
+  private async readPdf(res: Response, path: string): Promise<{ bytes: Uint8Array; contentType: string }> {
     if (!res.ok) {
       this.classify(
         res,
@@ -216,6 +289,17 @@ export class MhlbClient {
     }
 
     return { bytes, contentType };
+  }
+
+  /**
+   * The account every confirmation token is bound to: the sign-in username,
+   * normalised the way the server and the token cache treat it. Without it, a
+   * token minted in one parent's child verifies in another's under a shared
+   * MCP_CONFIRM_SECRET for the same target and payload. `undefined` (no
+   * credentials) binds as absent; such a call cannot sign in anyway.
+   */
+  get account(): string | undefined {
+    return this.config.username?.trim().toLowerCase() || undefined;
   }
 
   /** Drop the in-process session (used by the session tool and by tests). */

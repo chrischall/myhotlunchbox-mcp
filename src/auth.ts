@@ -1,4 +1,12 @@
-import { EdgeBlockedError, McpToolError, detectEdgeBlock, truncateErrorMessage } from '@chrischall/mcp-utils';
+import {
+  EdgeBlockedError,
+  McpToolError,
+  RateLimitError,
+  UnreachableError,
+  detectEdgeBlock,
+  truncateErrorMessage,
+  withAmbientCancellation,
+} from '@chrischall/mcp-utils';
 import { TokenManager } from '@chrischall/mcp-utils/session';
 import { API_PREFIX, OAUTH_SCOPE, type MhlbConfig } from './config.js';
 import { createTokenCache, reportCacheWriteFailure } from './token-cache.js';
@@ -21,6 +29,25 @@ interface TokenErrorResponse {
 const DEFAULT_TOKEN_LIFETIME_S = 3600;
 
 export type FetchLike = typeof fetch;
+
+/** Default per-request timeout for the API and the token endpoint. */
+export const DEFAULT_TIMEOUT_MS = 30_000;
+
+/**
+ * The signal every upstream fetch carries: a timeout of its own, combined with
+ * the running tool call's cancellation (made ambient by mcp-utils' server
+ * wrapper), so a hung upstream cannot hang the tool call and a cancelled call
+ * stops waiting.
+ */
+export function requestSignal(timeoutMs: number): AbortSignal {
+  // withAmbientCancellation returns `own` unchanged when there is no ambient
+  // signal, so with an own signal in hand it is never undefined.
+  return withAmbientCancellation(AbortSignal.timeout(timeoutMs)) as AbortSignal;
+}
+
+/** Whether a fetch rejection was our own timeout firing (not the caller cancelling). */
+export const isTimeout = (err: unknown): boolean =>
+  typeof err === 'object' && err !== null && (err as { name?: unknown }).name === 'TimeoutError';
 
 /**
  * The token endpoint answered with an error. Carries the OAuth `error` code so
@@ -78,10 +105,18 @@ export class MhlbAuth {
    * {@link reset} (mhlb_session_reset) or a restart.
    */
   private credentialRejected: GrantRejectedError | null = null;
+  /**
+   * Set once the API has accepted an access token (from the cache, a login or
+   * a refresh) — i.e. answered something other than 401. The manager itself
+   * exists before any sign-in has run, so its presence says nothing about a
+   * session.
+   */
+  private sessionEstablished = false;
 
   constructor(
     private readonly config: MhlbConfig,
     private readonly fetchImpl: FetchLike = fetch,
+    private readonly timeoutMs: number = DEFAULT_TIMEOUT_MS,
   ) {}
 
   /** Credentials are checked lazily so the server still boots without them. */
@@ -97,6 +132,30 @@ export class MhlbAuth {
     return { username, password };
   }
 
+  /**
+   * Refuse to send anything — the password included — to an origin that is
+   * not https. Plain http is allowed only to loopback, which is what
+   * scripts/capture-writes.mjs points MYHOTLUNCHBOX_BASE_URL at. Checked per
+   * call rather than at boot so a bad value still lets the server start and
+   * surfaces as a tool error.
+   */
+  private requireSafeOrigin(): void {
+    const { baseUrl } = this.config;
+    let url: URL | null = null;
+    try {
+      url = new URL(baseUrl);
+    } catch {
+      /* reported below */
+    }
+    const loopback = url !== null && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+    if (url?.protocol === 'https:' || (url?.protocol === 'http:' && loopback)) return;
+    throw new McpToolError(`MYHOTLUNCHBOX_BASE_URL (${baseUrl}) is not an https:// origin; refusing to sign in.`, {
+      hint:
+        'MYHOTLUNCHBOX_BASE_URL must be https:// (plain http is allowed only for localhost). ' +
+        'Unset it to use https://ordernow.myhotlunchbox.com.',
+    });
+  }
+
   private tokenUrl(): string {
     return `${this.config.baseUrl}${API_PREFIX}/auth/login`;
   }
@@ -107,6 +166,7 @@ export class MhlbAuth {
    */
   private async postGrant(form: Record<string, string>): Promise<TokenResponse> {
     const { password } = this.config;
+    const signal = requestSignal(this.timeoutMs);
     let res: Response;
     try {
       res = await this.fetchImpl(this.tokenUrl(), {
@@ -116,8 +176,18 @@ export class MhlbAuth {
           accept: 'application/json',
         },
         body: new URLSearchParams(form).toString(),
+        signal,
       });
     } catch (cause) {
+      if (isTimeout(cause)) {
+        throw new McpToolError(
+          `My Hot Lunchbox sign-in timed out after ${Math.round(this.timeoutMs / 1000)}s.`,
+          { hint: 'The sign-in endpoint is slow or down; the credential was never judged. Try again later.', cause },
+        );
+      }
+      // The caller cancelled: let its own reason through rather than calling
+      // it a connectivity problem.
+      if (signal.aborted) throw cause;
       throw new McpToolError(
         `Could not reach My Hot Lunchbox at ${this.config.baseUrl}.`,
         { hint: 'Check network connectivity, or override MYHOTLUNCHBOX_BASE_URL if the app has moved.', cause },
@@ -139,6 +209,15 @@ export class MhlbAuth {
           path: `${API_PREFIX}/auth/login`,
         });
       }
+      // A throttle or an outage never judged the password either. Only a 4xx
+      // from the token endpoint itself is a verdict on the credential; a 429,
+      // a 5xx or a gateway page must not read as "rejected the sign-in",
+      // which tells the parent to change a working password and not retry.
+      if (res.status === 429) {
+        const retryAfter = Number(res.headers.get('retry-after'));
+        throw new RateLimitError('My Hot Lunchbox', Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined);
+      }
+      if (res.status >= 500) throw new UnreachableError('My Hot Lunchbox', res.status);
       let parsed: TokenErrorResponse | null = null;
       try {
         parsed = JSON.parse(raw) as TokenErrorResponse;
@@ -205,6 +284,7 @@ export class MhlbAuth {
    * Single-flight: concurrent first-callers share one login.
    */
   private async ensureManager(): Promise<TokenManager> {
+    this.requireSafeOrigin();
     if (this.manager) return this.manager;
     if (this.loginInFlight) return this.loginInFlight;
 
@@ -266,7 +346,13 @@ export class MhlbAuth {
    */
   async withAuth(call: (accessToken: string) => Promise<Response>): Promise<Response> {
     const manager = await this.ensureManager();
-    return manager.withAuth(call);
+    return manager.withAuth(async (accessToken) => {
+      const res = await call(accessToken);
+      // Only a token the API accepted proves a session; a 401 (even after the
+      // one refresh) means the sign-in produced nothing usable.
+      if (res.status !== 401) this.sessionEstablished = true;
+      return res;
+    });
   }
 
   /**
@@ -282,6 +368,7 @@ export class MhlbAuth {
     this.manager = null;
     this.loginInFlight = null;
     this.credentialRejected = null;
+    this.sessionEstablished = false;
     createTokenCache()?.clear();
   }
 
@@ -290,8 +377,8 @@ export class MhlbAuth {
     return this.fetchImpl(url, init);
   }
 
-  /** Whether a session has been established in this process. */
+  /** Whether a sign-in has actually produced an access token in this process. */
   get isAuthenticated(): boolean {
-    return this.manager !== null;
+    return this.sessionEstablished;
   }
 }
