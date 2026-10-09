@@ -162,6 +162,29 @@ describe('MhlbAuth', () => {
     expect((err as Error).message).not.toContain('rejected the sign-in');
   });
 
+  it.each([
+    ['plain http to a remote host', 'http://ordernow.myhotlunchbox.com'],
+    ['a non-http scheme', 'ftp://ordernow.myhotlunchbox.com'],
+    ['an unparseable value', 'ordernow.myhotlunchbox.com'],
+  ])('refuses to send the password over %s', async (_label, baseUrl) => {
+    const fetchImpl = vi.fn(tokenHandler()) as unknown as typeof fetch;
+    const auth = new MhlbAuth(testConfig({ baseUrl }), fetchImpl);
+
+    const err = await auth.withAuth(async () => jsonResponse({})).catch((e: Error) => e);
+
+    expect((err as Error).message).toMatch(/MYHOTLUNCHBOX_BASE_URL/);
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it.each(['http://127.0.0.1:8123', 'http://localhost:8123', 'http://[::1]:8123'])(
+    'allows plain http to loopback (%s), which the capture proxy uses',
+    async (baseUrl) => {
+      const fetchImpl = mockFetch([tokenHandler()]);
+      const auth = new MhlbAuth(testConfig({ baseUrl }), fetchImpl);
+      await expect(auth.withAuth(async () => jsonResponse({}))).resolves.toBeInstanceOf(Response);
+    },
+  );
+
   it('isAuthenticated stays false when the first sign-in is rejected', async () => {
     const fetchImpl = mockFetch([
       (url) =>

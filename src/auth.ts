@@ -110,6 +110,30 @@ export class MhlbAuth {
     return { username, password };
   }
 
+  /**
+   * Refuse to send anything — the password included — to an origin that is
+   * not https. Plain http is allowed only to loopback, which is what
+   * scripts/capture-writes.mjs points MYHOTLUNCHBOX_BASE_URL at. Checked per
+   * call rather than at boot so a bad value still lets the server start and
+   * surfaces as a tool error.
+   */
+  private requireSafeOrigin(): void {
+    const { baseUrl } = this.config;
+    let url: URL | null = null;
+    try {
+      url = new URL(baseUrl);
+    } catch {
+      /* reported below */
+    }
+    const loopback = url !== null && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+    if (url?.protocol === 'https:' || (url?.protocol === 'http:' && loopback)) return;
+    throw new McpToolError(`MYHOTLUNCHBOX_BASE_URL (${baseUrl}) is not an https:// origin; refusing to sign in.`, {
+      hint:
+        'MYHOTLUNCHBOX_BASE_URL must be https:// (plain http is allowed only for localhost). ' +
+        'Unset it to use https://ordernow.myhotlunchbox.com.',
+    });
+  }
+
   private tokenUrl(): string {
     return `${this.config.baseUrl}${API_PREFIX}/auth/login`;
   }
@@ -227,6 +251,7 @@ export class MhlbAuth {
    * Single-flight: concurrent first-callers share one login.
    */
   private async ensureManager(): Promise<TokenManager> {
+    this.requireSafeOrigin();
     if (this.manager) return this.manager;
     if (this.loginInFlight) return this.loginInFlight;
 

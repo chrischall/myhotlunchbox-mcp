@@ -57,16 +57,27 @@ describe('credential binding', () => {
     expect(createTokenCache(pw())!.load()).toEqual(expect.objectContaining({ accessToken: 'TOK' }));
   });
 
+  // Each case builds its env lazily: an `it.each` table is evaluated at module
+  // load, before beforeEach has set `dir`, so an eager `pw(...)` would carry
+  // MCP_DATA_DIR: undefined and load from a file that does not exist — passing
+  // whether or not the binding works.
   it.each([
-    ['a rotated password', pw({ MYHOTLUNCHBOX_PASSWORD: 'pw2' })],
-    ['a different account', pw({ MYHOTLUNCHBOX_USERNAME: 'other@example.com' })],
+    ['a rotated password', () => pw({ MYHOTLUNCHBOX_PASSWORD: 'pw2' })],
+    ['a different account', () => pw({ MYHOTLUNCHBOX_USERNAME: 'other@example.com' })],
+    // A token minted against one origin must never be replayed as a Bearer to
+    // another — e.g. after scripts/capture-writes.mjs pointed BASE_URL at a proxy.
+    ['a different base URL', () => pw({ MYHOTLUNCHBOX_BASE_URL: 'http://127.0.0.1:9999' })],
   ])('discards the cache on %s', (_label, env) => {
     createTokenCache(pw())!.save(token());
-    expect(createTokenCache(env)!.load()).toBeNull();
+    expect(createTokenCache(pw())!.load()).not.toBeNull();
+    expect(createTokenCache(env())!.load()).toBeNull();
   });
 
-  it('is disabled without credentials to bind to', () => {
-    expect(createTokenCache({ MCP_DATA_DIR: dir, MYHOTLUNCHBOX_TOKEN_CACHE: 'true' })).toBeNull();
+  it('treats a trailing slash on the base URL as the same origin', () => {
+    createTokenCache(pw())!.save(token());
+    expect(
+      createTokenCache(pw({ MYHOTLUNCHBOX_BASE_URL: 'https://ordernow.myhotlunchbox.com/' }))!.load(),
+    ).not.toBeNull();
   });
 
   it('matches the username case-insensitively', () => {

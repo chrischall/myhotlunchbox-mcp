@@ -4,7 +4,8 @@ import {
   type BearerTokens,
   type SyncStatePersistence,
 } from '@chrischall/mcp-utils/session';
-import { readEnvVar, parseBoolEnv } from '@chrischall/mcp-utils';
+import { parseBoolEnv } from '@chrischall/mcp-utils';
+import { loadConfig } from './config.js';
 
 /** Where the OAuth token pair is cached between runs. */
 export function tokenCachePath(env: NodeJS.ProcessEnv = process.env): string {
@@ -37,16 +38,15 @@ function isTokens(raw: unknown): raw is BearerTokens {
  * the first case into nothing and the second into one refresh, which matters on
  * a host where a child idles out after ten minutes and every start is cold.
  *
- * The record is bound to the credentials that minted it, so rotating either
- * discards it rather than leaving a token from the old password in play. Only a
+ * The record is bound to the credentials and origin that minted it, so changing
+ * any of them discards it rather than leaving a token from the old password in play. Only a
  * salted digest is written; neither value reaches the file.
  */
 export function createTokenCache(
   env: NodeJS.ProcessEnv = process.env,
 ): SyncStatePersistence<BearerTokens> | null {
   if (!parseBoolEnv('MYHOTLUNCHBOX_TOKEN_CACHE', { env, default: true })) return null;
-  const username = readEnvVar('MYHOTLUNCHBOX_USERNAME', { env });
-  const password = readEnvVar('MYHOTLUNCHBOX_PASSWORD', { env });
+  const { username, password, baseUrl } = loadConfig(env);
   if (username === undefined || password === undefined) return null;
 
   return createFileStatePersistence<BearerTokens>({
@@ -54,7 +54,9 @@ export function createTokenCache(
     // Joined on a NUL, written as an escape rather than a literal byte: a
     // password may contain spaces, so a space-joined pair could collide with a
     // different pair by shifting the boundary between the two halves.
-    boundTo: [username.trim().toLowerCase(), password].join('\u0000'),
+    // The origin is bound too: a token pair minted against one base URL must
+    // never be replayed as a Bearer to another (a capture proxy, a typo).
+    boundTo: [username.trim().toLowerCase(), password, baseUrl].join('\u0000'),
     validate: (raw) => (isTokens(raw) ? raw : null),
   });
 }

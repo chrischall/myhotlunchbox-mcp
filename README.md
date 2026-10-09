@@ -31,7 +31,7 @@ That is the whole setup. The server performs a real server-side sign-in against
 the refresh token it receives — **no browser extension, no signed-in tab, no
 captured cookie**. Nothing is written to disk.
 
-`MYHOTLUNCHBOX_BASE_URL` overrides the app origin if it ever moves.
+`MYHOTLUNCHBOX_BASE_URL` overrides the app origin if it ever moves. It must be `https://` (plain `http://` is accepted only for `localhost`), and the token cache is bound to it, so changing it signs in again.
 
 The server boots without credentials so a host's install-time `tools/list` probe
 still works; the configuration error surfaces on the first tool call.
