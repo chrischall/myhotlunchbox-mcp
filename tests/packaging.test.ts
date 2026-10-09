@@ -105,4 +105,13 @@ describe('.mcpb manifest', () => {
     const key = /\$\{user_config\.(\w+)\}/.exec(entry![1])?.[1];
     expect(key && manifest.user_config[key]).toMatchObject({ type: 'directory', required: false });
   });
+
+  // src/token-cache.ts reads it (parseBoolEnv, default true); without an
+  // entry a .mcpb install could never turn the on-disk cache off.
+  it('exposes the token-cache switch as an optional boolean defaulting on', () => {
+    const entry = Object.entries(manifest.server.mcp_config.env).find(([k]) => k === 'MYHOTLUNCHBOX_TOKEN_CACHE');
+    expect(entry).toBeDefined();
+    const key = /\$\{user_config\.(\w+)\}/.exec(entry![1])?.[1];
+    expect(key && manifest.user_config[key]).toMatchObject({ type: 'boolean', required: false, default: true });
+  });
 });

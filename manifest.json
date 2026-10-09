@@ -35,7 +35,8 @@
       "env": {
         "MYHOTLUNCHBOX_USERNAME": "${user_config.myhotlunchbox_username}",
         "MYHOTLUNCHBOX_PASSWORD": "${user_config.myhotlunchbox_password}",
-        "MYHOTLUNCHBOX_OUTPUT_DIR": "${user_config.myhotlunchbox_output_dir}"
+        "MYHOTLUNCHBOX_OUTPUT_DIR": "${user_config.myhotlunchbox_output_dir}",
+        "MYHOTLUNCHBOX_TOKEN_CACHE": "${user_config.myhotlunchbox_token_cache}"
       }
     }
   },
@@ -59,6 +60,13 @@
       "title": "Report folder",
       "description": "Where the print tools save PDF reports. Defaults to your Downloads folder.",
       "required": false
+    },
+    "myhotlunchbox_token_cache": {
+      "type": "boolean",
+      "title": "Token cache",
+      "description": "Set to false to disable the on-disk token cache and re-authenticate on every process start. Defaults to enabled.",
+      "required": false,
+      "default": true
     }
   },
   "compatibility": {
