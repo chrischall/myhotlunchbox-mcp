@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.7](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.2.6...v1.2.7) (2026-10-10)
+
+
+### Documentation
+
+* make AGENTS.md a symlink to CLAUDE.md ([#121](https://github.com/chrischall/myhotlunchbox-mcp/issues/121)) ([8f124ef](https://github.com/chrischall/myhotlunchbox-mcp/commit/8f124ef89b85940773a9ba9d860aef7fadcee484))
+
 ## [1.2.6](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.2.5...v1.2.6) (2026-10-09)
 
 
