@@ -46,6 +46,10 @@ export function* candidateNames(filename: string): Generator<string> {
  * the real limit rather than hardcoding a copy of it. */
 export const MAX_NAME_ATTEMPTS = 1000;
 
+/** Report PDFs and any directory created for them are owner-only. */
+export const REPORT_FILE_MODE = 0o600;
+export const REPORT_DIR_MODE = 0o700;
+
 /**
  * Write the report without ever overwriting an existing file.
  *
@@ -61,7 +65,10 @@ export function writeWithoutClobbering(dir: string, filename: string, bytes: Uin
     attempts += 1;
     const candidate = join(dir, name);
     try {
-      writeFileSync(candidate, bytes, { flag: 'wx' });
+      // Owner-only: these PDFs carry children's names, lunch orders and
+      // receipts. `wx` (O_CREAT|O_EXCL) also never follows a symlink planted
+      // at the name — it fails EEXIST and the walk moves on.
+      writeFileSync(candidate, bytes, { flag: 'wx', mode: REPORT_FILE_MODE });
       return candidate;
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
@@ -112,7 +119,9 @@ function deliver(
   const dir = outputDir();
   let path: string;
   try {
-    mkdirSync(dir, { recursive: true });
+    // A directory created here is owner-only too; an existing one (e.g.
+    // ~/Downloads) is left as the user set it.
+    mkdirSync(dir, { recursive: true, mode: REPORT_DIR_MODE });
     path = writeWithoutClobbering(dir, filename, bytes);
   } catch (cause) {
     // Let an already-actionable error through rather than burying it under a
