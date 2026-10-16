@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.7](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.2.6...v1.2.7) (2026-10-16)
+
+
+### Bug Fixes
+
+* **deps:** bump the production-dependencies group with 3 updates ([#124](https://github.com/chrischall/myhotlunchbox-mcp/issues/124)) ([3c7da60](https://github.com/chrischall/myhotlunchbox-mcp/commit/3c7da60e4f52048d7c28210b20ab0836a963502a))
+* **reports:** write report PDFs owner-only ([#125](https://github.com/chrischall/myhotlunchbox-mcp/issues/125)) ([bc50756](https://github.com/chrischall/myhotlunchbox-mcp/commit/bc50756bb88051d9206e64f843d7dca32ee5223d))
+
+
+### Documentation
+
+* make AGENTS.md a symlink to CLAUDE.md ([#121](https://github.com/chrischall/myhotlunchbox-mcp/issues/121)) ([8f124ef](https://github.com/chrischall/myhotlunchbox-mcp/commit/8f124ef89b85940773a9ba9d860aef7fadcee484))
+
 ## [1.2.6](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.2.5...v1.2.6) (2026-10-09)
 
 
