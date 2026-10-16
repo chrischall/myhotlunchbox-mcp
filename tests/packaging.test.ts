@@ -83,6 +83,19 @@ describe('Claude Code plugin manifest', () => {
   it('points mcpServers at a file that exists', () => {
     expect(existsSync(join(root, plugin.mcpServers as string))).toBe(true);
   });
+
+  // A git-source plugin install never builds the repo, so a launch path into
+  // the gitignored dist/ fails to start; run the published package instead
+  // (fleet-audit#1195).
+  it('launches the published npm package, not a dist/ path', () => {
+    const pkg = read<{ name: string }>('package.json');
+    const cfg = read<{ mcpServers: Record<string, { command: string; args: string[] }> }>('.mcp.json');
+    const servers = Object.values(cfg.mcpServers);
+    expect(servers).toHaveLength(1);
+    expect(servers[0]!.command).toBe('npx');
+    expect(servers[0]!.args).toEqual(['-y', pkg.name]);
+    expect(JSON.stringify(cfg)).not.toMatch(/dist\//);
+  });
 });
 
 describe('registry constraints', () => {

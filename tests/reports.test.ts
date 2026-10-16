@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -195,6 +195,33 @@ describe('deliver() error handling, through a real tool call', () => {
       const text = result.content.map((c) => ('text' in c ? c.text : '')).join(' ');
       expect(text).toContain('Could not write the report into');
       expect(text).toContain('MYHOTLUNCHBOX_OUTPUT_DIR');
+    } finally {
+      await h.close();
+    }
+  });
+});
+
+describe('report file permissions', () => {
+  // The PDFs carry children's names, lunch orders and receipts: owner-only.
+  it('writes each report 0600', () => {
+    const d = scratch();
+    const p = writeWithoutClobbering(d, 'r.pdf', PDF);
+    expect(statSync(p).mode & 0o777).toBe(0o600);
+    const p2 = writeWithoutClobbering(d, 'r.pdf', PDF);
+    expect(statSync(p2).mode & 0o777).toBe(0o600);
+  });
+
+  it('creates a missing output directory 0700', async () => {
+    const parent = scratch();
+    const d = join(parent, 'reports');
+    process.env.MYHOTLUNCHBOX_OUTPUT_DIR = d;
+    const { h } = await harness();
+    try {
+      const body = parseToolResult<{ path: string }>(
+        await h.callTool('mhlb_print_calendar', { startDate: '2026-09-01', endDate: '2026-09-30', studentIds: [7] }),
+      );
+      expect(statSync(d).mode & 0o777).toBe(0o700);
+      expect(statSync(body.path).mode & 0o777).toBe(0o600);
     } finally {
       await h.close();
     }
