@@ -89,3 +89,13 @@ egress:
   # elsewhere.
   allow:
     - ordernow.myhotlunchbox.com
+
+# Sample prompts for the public catalog: things a parent would actually ask
+# that the tools above can answer. Read-only on purpose.
+examples:
+  - prompt: Which days next week have I not ordered lunch for yet?
+    note: Reads the lunch calendar for the date range.
+  - prompt: What's on the lunch menu for my kid this Friday, and when is the ordering deadline?
+    note: Looks up the student, then that day's menu.
+  - prompt: How much have I paid for school lunches this month?
+    note: Sums the account's payment transactions.
