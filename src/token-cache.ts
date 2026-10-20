@@ -1,5 +1,6 @@
 import {
   createFileStatePersistence,
+  isBearerTokens,
   resolveStateFile,
   type BearerTokens,
   type SyncStatePersistence,
@@ -15,18 +16,6 @@ export function tokenCachePath(env: NodeJS.ProcessEnv = process.env): string {
     subdir: '.myhotlunchbox-mcp',
     fileName: 'token.json',
   });
-}
-
-/** Only a token pair is ever stored — never the username or password. */
-function isTokens(raw: unknown): raw is BearerTokens {
-  if (raw === null || typeof raw !== 'object') return false;
-  const t = raw as Partial<BearerTokens>;
-  return (
-    typeof t.accessToken === 'string' &&
-    t.accessToken !== '' &&
-    typeof t.expiresAt === 'number' &&
-    (t.refreshToken === undefined || typeof t.refreshToken === 'string')
-  );
 }
 
 /**
@@ -57,7 +46,8 @@ export function createTokenCache(
     // The origin is bound too: a token pair minted against one base URL must
     // never be replayed as a Bearer to another (a capture proxy, a typo).
     boundTo: [username.trim().toLowerCase(), password, baseUrl].join('\u0000'),
-    validate: (raw) => (isTokens(raw) ? raw : null),
+    // Only a token pair is ever stored — never the username or password.
+    validate: (raw) => (isBearerTokens(raw) ? raw : null),
   });
 }
 

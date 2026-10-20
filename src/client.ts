@@ -11,7 +11,6 @@ import {
   MhlbAuth,
   isTimeout,
   requestSignal,
-  scrubCredentials,
   type FetchLike,
 } from './auth.js';
 import { API_PREFIX, loadConfig, type MhlbConfig } from './config.js';
@@ -201,14 +200,19 @@ export class MhlbClient {
       return JSON.parse(raw) as T;
     } catch {
       throw new McpToolError(
-        `My Hot Lunchbox returned a non-JSON body for ${method} ${path}: ${truncateErrorMessage(raw, 200)}`,
+        `My Hot Lunchbox returned a non-JSON body for ${method} ${path}: ${this.scrub(raw, 200)}`,
         { hint: 'The session may have lapsed into an HTML sign-in page, or the endpoint changed shape.' },
       );
     }
   }
 
-  private scrub(text: string): string {
-    return scrubCredentials(text, [this.config.password]);
+  /**
+   * Truncate an upstream body for an error message, scrubbing the configured
+   * password by value (raw and JSON-escaped) first: a password has no secret
+   * shape, so the shape redactor alone would let an echo of it through.
+   */
+  private scrub(text: string, max?: number): string {
+    return truncateErrorMessage(text, max, { values: [this.config.password] });
   }
 
   /** Authenticated GET. */
