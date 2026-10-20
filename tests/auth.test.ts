@@ -1,21 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { RateLimitError, UnreachableError } from '@chrischall/mcp-utils';
-import { MhlbAuth, scrubCredentials } from '../src/auth.js';
+import { MhlbAuth } from '../src/auth.js';
 import { jsonResponse, mockFetch, testConfig, tokenHandler, TEST_PASSWORD } from './helpers.js';
-
-describe('scrubCredentials', () => {
-  it('removes the literal password, which shape-based redaction cannot match', () => {
-    const body = `userCredential.password=${TEST_PASSWORD} rejected`;
-    const out = scrubCredentials(body, [TEST_PASSWORD]);
-    expect(out).not.toContain(TEST_PASSWORD);
-    expect(out).toContain('[redacted]');
-  });
-
-  it('ignores an empty needle rather than splicing between every character', () => {
-    expect(scrubCredentials('hello', [''])).toBe('hello');
-    expect(scrubCredentials('hello', [undefined])).toBe('hello');
-  });
-});
 
 describe('MhlbAuth', () => {
   it('signs in with a password grant and attaches the bearer token', async () => {
@@ -107,6 +93,39 @@ describe('MhlbAuth', () => {
     expect(err).toBeInstanceOf(Error);
     expect((err as Error).message).not.toContain(TEST_PASSWORD);
     expect((err as Error).message).toContain('[REDACTED]');
+  });
+
+  // A password has no secret SHAPE, so only by-value scrubbing catches it —
+  // including when it shows up in a non-JSON body that mentions it bare.
+  it('scrubs a shapeless password echoed in a non-JSON rejection body', async () => {
+    const fetchImpl = mockFetch([
+      (url) =>
+        url.endsWith('/api/auth/login')
+          ? new Response(`login failed for secret ${TEST_PASSWORD} (bad)`, { status: 400 })
+          : undefined,
+    ]);
+    const auth = new MhlbAuth(testConfig(), fetchImpl);
+    const err = await auth.withAuth(async () => jsonResponse({})).catch((e: Error) => e);
+    expect((err as Error).message).not.toContain(TEST_PASSWORD);
+    expect((err as Error).message).toContain('[REDACTED]');
+  });
+
+  // The raw body is JSON-escaped text: a password holding a quote appears as
+  // `\"` there, which a literal split on the password never matched.
+  it('scrubs the JSON-escaped spelling of a password in a raw rejection body', async () => {
+    const password = 'pa"ss\\word-9';
+    const fetchImpl = mockFetch([
+      (url) =>
+        url.endsWith('/api/auth/login')
+          ? new Response(`{"oops": "bad password ${JSON.stringify(password).slice(1, -1)}"`, { status: 400 })
+          : undefined,
+    ]);
+    const auth = new MhlbAuth(testConfig({ password }), fetchImpl);
+    const err = await auth.withAuth(async () => jsonResponse({})).catch((e: Error) => e);
+    const message = (err as Error).message;
+    expect(message).not.toContain(JSON.stringify(password).slice(1, -1));
+    expect(message).not.toContain('ss\\\\word');
+    expect(message).toContain('[REDACTED]');
   });
 
   it('does not retry a rejected credential', async () => {

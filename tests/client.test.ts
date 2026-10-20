@@ -94,6 +94,26 @@ describe('MhlbClient', () => {
     expect((err as Error).message).toContain('[REDACTED]');
   });
 
+  it('scrubs the JSON-escaped spelling of the password from an upstream error body', async () => {
+    const password = 'quote"d-parent-pw';
+    const client = new MhlbClient(
+      testConfig({ password }),
+      mockFetch([
+        tokenHandler(),
+        (url) =>
+          url.includes('/event/createOrder')
+            ? new Response(JSON.stringify({ message: `echo ${password}` }), { status: 400 })
+            : undefined,
+      ]),
+    );
+
+    const err = await client.write('/event/createOrder', {}).catch((e: Error) => e);
+    const message = (err as Error).message;
+    expect(message).not.toContain('quote\\"d-parent-pw');
+    expect(message).not.toContain('d-parent-pw');
+    expect(message).toContain('[REDACTED]');
+  });
+
   it('reports an HTML sign-in page as a shape problem, not silent garbage', async () => {
     const client = apiClient((url) =>
       url.includes('/parent/childrenInfo')

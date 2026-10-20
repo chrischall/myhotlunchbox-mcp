@@ -68,25 +68,6 @@ const isInvalidGrant = (err: unknown): err is GrantRejectedError =>
   err instanceof GrantRejectedError && err.oauthError === 'invalid_grant';
 
 /**
- * Strip the caller's own secrets out of an upstream body before it is ever
- * rendered to a user.
- *
- * `truncateErrorMessage`/`redactSecrets` match secret *shapes* (Bearer, JWT,
- * `sk-`, …). A password has no shape, so it would survive them untouched — and
- * this is the one error path that has just sent one. Splice out the literal
- * values as well. The empty-needle guard matters: `split('')` would splice the
- * placeholder between every character.
- */
-export function scrubCredentials(text: string, secrets: readonly (string | undefined)[]): string {
-  let out = text;
-  for (const secret of secrets) {
-    if (!secret) continue;
-    out = out.split(secret).join('[redacted]');
-  }
-  return truncateErrorMessage(out);
-}
-
-/**
  * Owns the OAuth2 session against `/api/auth/login`.
  *
  * The web app uses a password grant with `offline_access`, so a real
@@ -227,7 +208,11 @@ export class MhlbAuth {
       const detail = parsed?.error_description ?? parsed?.error ?? raw;
       // Never auto-retry a rejected credential: these servers count attempts.
       throw new GrantRejectedError(
-        `My Hot Lunchbox rejected the sign-in (HTTP ${res.status}): ${scrubCredentials(detail, [password, form.password, form.refresh_token])}`,
+        `My Hot Lunchbox rejected the sign-in (HTTP ${res.status}): ${truncateErrorMessage(detail, undefined, {
+          // A password has no secret SHAPE, so the shape redactor alone would let
+          // it through — and this is the one error path that has just sent one.
+          values: [password, form.password, form.refresh_token],
+        })}`,
         parsed?.error,
         {
           hint:
