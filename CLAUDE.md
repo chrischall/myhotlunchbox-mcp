@@ -22,10 +22,11 @@ design — do not add a retry loop around it.
 
 ## The password has no shape
 
-`redactSecrets` / `truncateErrorMessage` match secret *shapes* (Bearer, JWT,
-`sk-`). A password matches none of them. Every error path that renders an
-upstream body goes through `scrubCredentials(text, [password])`, which splices
-the literal value out. `tests/auth.test.ts` and `tests/client.test.ts` assert the
+`redactSecrets` matches secret *shapes* (Bearer, JWT, `sk-`). A password
+matches none of them. Every error path that renders an upstream body goes
+through `truncateErrorMessage(text, max, { values: [password] })`, which
+splices the literal value out (raw and JSON-escaped) *before* it cuts, so no
+half of it survives at the boundary. `tests/auth.test.ts` and `tests/client.test.ts` assert the
 **outcome** (the password is absent from the message), not that the wrapper was
 called — the wrapper alone would have passed while still leaking.
 
