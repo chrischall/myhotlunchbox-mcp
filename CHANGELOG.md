@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.2.8](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.2.7...v1.2.8) (2026-10-20)
+
+
+### Bug Fixes
+
+* **auth:** scrub JSON-escaped passwords from sign-in and API error messages ([#132](https://github.com/chrischall/myhotlunchbox-mcp/issues/132)) ([0f05b68](https://github.com/chrischall/myhotlunchbox-mcp/commit/0f05b6830de7834d6a2158cc33b2477da61f8ec7))
+* **deps:** bump dotenv from 18.0.7 to 18.0.8 in the production-dependencies group ([#129](https://github.com/chrischall/myhotlunchbox-mcp/issues/129)) ([d5ca86c](https://github.com/chrischall/myhotlunchbox-mcp/commit/d5ca86cd03d8105995297cb6e2dc748b652d96f5))
+
+
+### Documentation
+
+* describe the truncateErrorMessage password scrub in CLAUDE.md ([#134](https://github.com/chrischall/myhotlunchbox-mcp/issues/134)) ([5022ad0](https://github.com/chrischall/myhotlunchbox-mcp/commit/5022ad0444618b43f694e13f783980cd4621a967))
+* **mint:** add sample prompts for the public catalog ([#131](https://github.com/chrischall/myhotlunchbox-mcp/issues/131)) ([c2ea9dd](https://github.com/chrischall/myhotlunchbox-mcp/commit/c2ea9dd86a00473746a517ef780ea730e3efcf3f))
+
 ## [1.2.7](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.2.6...v1.2.7) (2026-10-16)
 
 
