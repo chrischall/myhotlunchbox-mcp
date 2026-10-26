@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.9](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.2.8...v1.2.9) (2026-10-26)
+
+
+### Bug Fixes
+
+* **deps:** bump the production-dependencies group with 2 updates ([#135](https://github.com/chrischall/myhotlunchbox-mcp/issues/135)) ([4df0ed4](https://github.com/chrischall/myhotlunchbox-mcp/commit/4df0ed455b6e0fa7c07b395a04f82224e2d7614c))
+
 ## [1.2.8](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.2.7...v1.2.8) (2026-10-20)
 
 
