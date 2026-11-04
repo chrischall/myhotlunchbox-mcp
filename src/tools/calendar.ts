@@ -49,13 +49,20 @@ function statusOf(className: unknown): string {
  * One calendar event as one line, `<student>: title — <ISO date | no date> —
  * <status>`, at most 120 characters (the title is shortened). Read only from
  * the fields the calendar's events carry: `title`, `start`, `className`.
+ *
+ * A line whose text starts with `-- ` or `\` — a school can name an event
+ * `-- none` — is escaped with one leading `\`, so an item can never read as a
+ * note; the host strips that one backslash from every item line (the
+ * consolidated brief-view contract, vibo-mcp#206/#207).
  */
 export function briefLine(event: unknown, studentLabel?: string): string {
   const e = (event && typeof event === 'object' ? event : {}) as Record<string, unknown>;
   const title = str(e.title) ?? 'lunch';
   const start = str(e.start);
   const date = start && /^\d{4}-\d{2}-\d{2}/.test(start) ? start.slice(0, 10) : 'no date';
-  const prefix = studentLabel ? `${studentLabel}: ` : '';
+  const lead = studentLabel ? `${studentLabel}: ` : title;
+  const escape = lead.startsWith('-- ') || lead.startsWith('\\') ? '\\' : '';
+  const prefix = escape + (studentLabel ? `${studentLabel}: ` : '');
   const tail = ` — ${date} — ${statusOf(e.className)}`;
   const room = BRIEF_MAX - tail.length - prefix.length;
   const shown = title.length > room ? `${title.slice(0, Math.max(room - 1, 0))}…` : title;

@@ -115,7 +115,8 @@ The MCP's tools carry context-group hints (`_meta.mint`) placing them in the
   (`<student>: title — <date> — <status>`, e.g. `paid`, `scheduled`,
   `subscribed`, `past`, `school event`), inside the untrusted-data envelope
   since titles come from the school and its vendors. `-- none` means an empty
-  range.
+  range; a line whose own text starts with `-- ` or `\` is escaped with one
+  leading `\`, so it never reads as a note.
 - **Subject:** `student` — the students' first names, listed once at start
   and published as the argument's enum; a student id is accepted too.
 - Nothing here answers *what's new* or *what's due*; every other tool is a
