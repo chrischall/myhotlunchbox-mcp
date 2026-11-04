@@ -389,6 +389,30 @@ describe('mhlb_get_calendar view: brief', () => {
       .toBe('Holiday — 2026-09-14 — school event');
   });
 
+  it('escapes a line whose text starts with "-- " so an item never reads as a note', () => {
+    expect(briefLine({ title: '-- none', start: '2026-09-14', className: ['event-paid'] }))
+      .toBe('\\-- none — 2026-09-14 — paid');
+    expect(briefLine({ title: '-- 1 of 9 shown', start: '2026-09-14' }, '-- Avery'))
+      .toBe('\\-- Avery: -- 1 of 9 shown — 2026-09-14 — no status');
+  });
+
+  it('escapes a line whose text starts with a backslash, since the host strips one from every item', () => {
+    expect(briefLine({ title: '\\menu', start: '2026-09-14', className: ['event-paid'] }))
+      .toBe('\\\\menu — 2026-09-14 — paid');
+  });
+
+  it('leaves a title that only contains "-- " later in the line alone', () => {
+    expect(briefLine({ title: '-- none', start: '2026-09-14', className: ['event-paid'] }, 'Avery'))
+      .toBe('Avery: -- none — 2026-09-14 — paid');
+  });
+
+  it('keeps an escaped line within 120 characters, the title cut first', () => {
+    const line = briefLine({ title: '-- ' + 'x'.repeat(300), start: '2026-09-14', className: ['event-paid'] });
+    expect(line.length).toBeLessThanOrEqual(120);
+    expect(line.startsWith('\\-- x')).toBe(true);
+    expect(line.endsWith('… — 2026-09-14 — paid')).toBe(true);
+  });
+
   it('says "no date" for an event without a start', () => {
     expect(briefLine({ title: 'Field trip', className: ['event-closed'] })).toBe('Field trip — no date — closed');
   });
