@@ -5,7 +5,7 @@ import { McpToolError, readEnvVar, toolAnnotations, PositiveInt, IsoDate } from 
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { MhlbClient } from '../client.js';
-import { minifiedResult } from './_shared.js';
+import { minifiedResult, schoolMeta } from './_shared.js';
 
 /**
  * The `/parentReports/print*` endpoints are declared `responseType: 'blob'` in
@@ -154,6 +154,7 @@ export function registerReportTools(server: McpServer, client: MhlbClient): void
         'Generate the printable lunch calendar PDF for a date range. Writes the PDF to disk and returns its ' +
         'path (or the bytes inline with inline: true).',
       annotations: toolAnnotations({ title: 'Print lunch calendar', readOnly: false, openWorld: true, destructive: false }),
+      _meta: schoolMeta('other'),
       inputSchema: z.object({
         startDate: IsoDate.describe('First day to include (YYYY-MM-DD).'),
         endDate: IsoDate.describe('Last day to include (YYYY-MM-DD).'),
@@ -190,6 +191,7 @@ export function registerReportTools(server: McpServer, client: MhlbClient): void
         'and studentIds is required — the endpoint fails if it is empty, or if no order matches the date and ' +
         'status you ask for. Get both from mhlb_get_calendar.',
       annotations: toolAnnotations({ title: 'Print order details', readOnly: false, openWorld: true, destructive: false }),
+      _meta: schoolMeta('other'),
       inputSchema: z.object({
         date: IsoDate.describe('The lunch date to report on (YYYY-MM-DD).'),
         orderStatus: z
@@ -223,6 +225,7 @@ export function registerReportTools(server: McpServer, client: MhlbClient): void
         'mhlb_list_transactions; the server fetches that transaction’s detail record and has the endpoint ' +
         'render it, so the receipt always reflects the account’s real data.',
       annotations: toolAnnotations({ title: 'Print transaction receipt', readOnly: false, openWorld: true, destructive: false }),
+      _meta: schoolMeta('other'),
       inputSchema: z.object({
         transactionId: PositiveInt.describe('Transaction id (the `id` field from mhlb_list_transactions).'),
         isCreditType: z.boolean().optional().describe('Render as a credit rather than a payment. Default false.'),

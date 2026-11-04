@@ -105,6 +105,27 @@ afterwards to confirm it landed. A `200` is not proof.
 | non-JSON `200` | either a `/parentReports/print*` PDF (expected — see references) or the session lapsed into an HTML page |
 | `500` on `/parentReports/printOrders` | usually a caller mistake: empty `studentIds`, or no order matching that date and status |
 
+## In context groups
+
+The MCP's tools carry context-group hints (`_meta.mint`) placing them in the
+**school** group, beside the other school MCPs a host groups together.
+
+- **Canonical read:** `mhlb_get_calendar` answers *what's on* — the lunch
+  calendar over `startDate`…`endDate`, one line per lunch with `view: "brief"`
+  (`<student>: title — <date> — <status>`, e.g. `paid`, `scheduled`,
+  `subscribed`, `past`, `school event`), inside the untrusted-data envelope
+  since titles come from the school and its vendors. `-- none` means an empty
+  range.
+- **Subject:** `student` — the students' first names, listed once at start
+  and published as the argument's enum; a student id is accepted too.
+- Nothing here answers *what's new* or *what's due*; every other tool is a
+  lookup or a confirmed write.
+
+A compound ask reads like "what's for lunch this week, and anything due at
+school?" — the host asks this calendar for the week beside the other school
+members' canonical reads. This MCP signs in server-side, so it needs no
+browser open.
+
 ## Prefer the MCP when it is available
 
 `myhotlunchbox-mcp` wraps all of this with typed tools and a confirmation step
