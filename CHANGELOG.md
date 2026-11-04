@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.3.0](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.2.8...v1.3.0) (2026-11-04)
+
+
+### Features
+
+* context-group hints ([#139](https://github.com/chrischall/myhotlunchbox-mcp/issues/139)) ([72832a8](https://github.com/chrischall/myhotlunchbox-mcp/commit/72832a810555dac9032ffb4701f0530de29d747a))
+
+
+### Bug Fixes
+
+* **brief:** align the brief view with the fleet contract ([#140](https://github.com/chrischall/myhotlunchbox-mcp/issues/140)) ([1741914](https://github.com/chrischall/myhotlunchbox-mcp/commit/17419142395b1028183a619dc361afd013c25d31))
+* **deps:** bump the production-dependencies group across 1 directory with 2 updates ([#138](https://github.com/chrischall/myhotlunchbox-mcp/issues/138)) ([67532da](https://github.com/chrischall/myhotlunchbox-mcp/commit/67532dab1992596204803b293fbda98e6301fe6e))
+* **deps:** bump the production-dependencies group with 2 updates ([#135](https://github.com/chrischall/myhotlunchbox-mcp/issues/135)) ([4df0ed4](https://github.com/chrischall/myhotlunchbox-mcp/commit/4df0ed455b6e0fa7c07b395a04f82224e2d7614c))
+
 ## [1.2.8](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.2.7...v1.2.8) (2026-10-20)
 
 
