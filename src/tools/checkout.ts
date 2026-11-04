@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { MhlbClient } from '../client.js';
 import { confirmWrite } from '@chrischall/mcp-utils';
-import { CONFIRMS, UNVERIFIED, minifiedResult, previewNotes } from './_shared.js';
+import { CONFIRMS, UNVERIFIED, minifiedResult, previewNotes, schoolMeta } from './_shared.js';
 
 /**
  * Checkout is the only pair of tools that moves money. Both ask for
@@ -26,6 +26,7 @@ export function registerCheckoutTools(server: McpServer, client: MhlbClient): vo
         'available payment methods. This does NOT charge anything — it is the read step before mhlb_checkout.' +
         CONFIRMS + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Initialise checkout', readOnly: false, openWorld: true, destructive: false }),
+      _meta: schoolMeta('change'),
       inputSchema: z.object({
         ...CheckoutShape,
         confirmToken: confirmTokenParam,
@@ -57,6 +58,7 @@ export function registerCheckoutTools(server: McpServer, client: MhlbClient): vo
         'Only a card ALREADY SAVED on the account can be used: paying with a new card needs a Stripe token ' +
         'minted by Stripe.js in a browser, which no server-side client can produce.' + CONFIRMS + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Pay for cart', readOnly: false, openWorld: true, destructive: true }),
+      _meta: schoolMeta('change', { aliases: ['pay for lunch'] }),
       inputSchema: z.object({
         ...CheckoutShape,
         availableCredits: z

@@ -10,6 +10,7 @@ import { registerBillingTools } from './tools/billing.js';
 import { registerCheckoutTools } from './tools/checkout.js';
 import { registerReportTools } from './tools/reports.js';
 import { registerHealthcheckTools } from './tools/health.js';
+import { loadStudentDirectory } from './tools/student-directory.js';
 
 await loadDotenvSafely();
 
@@ -17,6 +18,14 @@ await loadDotenvSafely();
 // server still boots (and answers the host's install-time tools/list probe)
 // with no credentials set — the error surfaces on the first tool call.
 const client = new MhlbClient();
+
+// The calendar's `student` argument publishes the students' first names as an
+// enum (context groups, mcp-host spec 2026-11-03 D5), so list them ONCE here —
+// registrars run per served instance — bounded by STUDENT_LIST_TIMEOUT_MS.
+// Null (no credentials, a failed listing, a timeout, no students) publishes
+// the argument with no enum. A rejected sign-in is latched by the client, so
+// this is the one attempt the later tool calls would otherwise have made.
+const students = await loadStudentDirectory(client);
 
 await runMcp({
   name: 'myhotlunchbox-mcp',
@@ -26,7 +35,7 @@ await runMcp({
   tools: [
     registerAccountTools,
     registerStudentTools,
-    registerCalendarTools,
+    (server, c) => registerCalendarTools(server, c, students),
     registerOrderTools,
     registerBillingTools,
     registerCheckoutTools,

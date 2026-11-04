@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/server';
 import type { MhlbClient } from '../client.js';
 import { confirmWrite } from '@chrischall/mcp-utils';
-import { CONFIRMS, UNTRUSTED, UNVERIFIED, minifiedResult, previewNotes, untrustedRead } from './_shared.js';
+import { CONFIRMS, UNTRUSTED, UNVERIFIED, minifiedResult, previewNotes, untrustedRead, schoolMeta } from './_shared.js';
 import { OrderRefShape, orderRefBody } from './orders.js';
 
 export function registerBillingTools(server: McpServer, client: MhlbClient): void {
@@ -12,6 +12,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
     {
       description: 'List payment transactions on the account — date, amount, and what was paid for.' + UNTRUSTED,
       annotations: toolAnnotations({ title: 'List transactions', openWorld: true }),
+      _meta: schoolMeta('lookup', { aliases: ['lunch payments'] }),
       inputSchema: z.object({
         period: z.string().optional().describe('Ordering period to scope to, from mhlb_get_cart_tabs.'),
         studentId: PositiveInt.optional().describe('Limit to one student.'),
@@ -26,6 +27,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
     {
       description: 'Get the line-item detail of one transaction — which lunches it paid for.' + UNTRUSTED,
       annotations: toolAnnotations({ title: 'Get transaction', openWorld: true }),
+      _meta: schoolMeta('lookup'),
       inputSchema: z.object({ transactionId: PositiveInt.describe('Transaction id (the `id` field from mhlb_list_transactions).') }),
     },
     // The query parameter is `id`, not `transactionId` — verified live.
@@ -38,6 +40,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
       description:
         'List upcoming lunch subscriptions — the recurring orders that will be placed and charged automatically.' + UNTRUSTED,
       annotations: toolAnnotations({ title: 'List subscriptions', openWorld: true }),
+      _meta: schoolMeta('lookup'),
       inputSchema: z.object({ period: z.string().optional().describe('Ordering period to scope to.') }),
     },
     async ({ period }) => untrustedRead(await client.get('/event/upcomingSubscriptions', { period })),
@@ -48,6 +51,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
     {
       description: 'Get the account’s subscription configuration — whether recurring ordering is on, and its terms.' + UNTRUSTED,
       annotations: toolAnnotations({ title: 'Get subscription settings', openWorld: true }),
+      _meta: schoolMeta('lookup'),
       inputSchema: z.object({}),
     },
     async () => untrustedRead(await client.get('/event/subscription')),
@@ -60,6 +64,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
         'Turn recurring lunch subscriptions on or off for the account. Turning it ON means future lunches are ' +
         'ordered and charged automatically.' + CONFIRMS + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Enable/disable subscriptions', readOnly: false, openWorld: true, destructive: true }),
+      _meta: schoolMeta('turn-on-off'),
       inputSchema: z.object({
         enabled: z.boolean().describe('true to enable recurring subscriptions, false to disable.'),
         confirmToken: confirmTokenParam,
@@ -90,6 +95,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
     {
       description: 'Stop a recurring subscription for a specific lunch order.' + CONFIRMS + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Unsubscribe an order', readOnly: false, openWorld: true, destructive: true }),
+      _meta: schoolMeta('change'),
       // Same identifier payload as mhlb_delete_order — the site's order-mixin
       // routes to whichever endpoint by `isSubscribed`, with one body shape.
       inputSchema: z.object({ ...OrderRefShape, confirmToken: confirmTokenParam }),
@@ -119,6 +125,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
         'List gift cards on the account — balances and status, with each code masked to its last 4 characters. ' +
         'Pass revealCodes: true only when the user needs a full code.',
       annotations: toolAnnotations({ title: 'List gift cards', openWorld: true }),
+      _meta: schoolMeta('lookup'),
       inputSchema: z.object({
         revealCodes: z
           .boolean()
@@ -137,6 +144,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
     {
       description: 'Redeem a gift card code onto the account balance.' + CONFIRMS + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Apply gift card', readOnly: false, openWorld: true, destructive: true }),
+      _meta: schoolMeta('change'),
       inputSchema: z.object({ code: NonEmptyString.describe('Gift card code.'), confirmToken: confirmTokenParam }),
     },
     async ({ code, confirmToken }, ctx) => {
@@ -160,6 +168,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
     {
       description: 'Get the coupon currently applied to the account, if any.' + UNTRUSTED,
       annotations: toolAnnotations({ title: 'Get applied coupon', openWorld: true }),
+      _meta: schoolMeta('lookup'),
       inputSchema: z.object({}),
     },
     async () => untrustedRead(await client.get('/parent/coupon')),
@@ -170,6 +179,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
     {
       description: 'Apply a coupon code to the account.' + CONFIRMS + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Apply coupon', readOnly: false, openWorld: true, destructive: false }),
+      _meta: schoolMeta('change'),
       inputSchema: z.object({ code: NonEmptyString.describe('Coupon code.'), confirmToken: confirmTokenParam }),
     },
     async ({ code, confirmToken }, ctx) => {
@@ -193,6 +203,7 @@ export function registerBillingTools(server: McpServer, client: MhlbClient): voi
     {
       description: 'Remove the coupon currently applied to the account.' + CONFIRMS + UNVERIFIED,
       annotations: toolAnnotations({ title: 'Remove coupon', readOnly: false, openWorld: true, destructive: false }),
+      _meta: schoolMeta('change'),
       inputSchema: z.object({ confirmToken: confirmTokenParam }),
     },
     async ({ confirmToken }, ctx) => {
