@@ -6,6 +6,7 @@ import { createTestHarness, parseToolResult } from '@chrischall/mcp-utils/test';
 import { isPdf, MhlbClient } from '../src/client.js';
 import {
   candidateNames,
+  MAX_INLINE_BYTES,
   MAX_NAME_ATTEMPTS,
   midpoint,
   outputDir,
@@ -579,5 +580,167 @@ describe('report tools', () => {
       .catch((e: Error & { hint?: string }) => e);
     expect((err as Error).message).toContain('failed to generate the report');
     expect((err as { hint?: string }).hint).toMatch(/studentIds is non-empty/);
+  });
+});
+
+describe('hosted delivery', () => {
+  // A hosted caller (claude.ai on mcp-host) shares no filesystem with this
+  // process, so a saved path is unreachable; and claude.ai rejects every
+  // non-image EmbeddedResource. A PDF therefore goes out as a signed link.
+  const BLOB_BASE = 'https://host.example/b/reg_0123456789abcdef01234567';
+  const puts: Array<{ url: string; type: string | null; bytes: Uint8Array }> = [];
+
+  /** A harness whose upstream is the report API and whose blob PUTs are recorded. */
+  async function hostedHarness(env: Record<string, string>) {
+    for (const [k, v] of Object.entries(env)) vi.stubEnv(k, v);
+    puts.length = 0;
+    // deliverFile's blob store PUTs through the global fetch.
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      puts.push({
+        url,
+        type: new Headers(init!.headers).get('content-type'),
+        bytes: new Uint8Array(init!.body as ArrayBuffer),
+      });
+      return new Response(null, { status: 201 });
+    }));
+    return harness();
+  }
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+  });
+
+  const call = (h: Awaited<ReturnType<typeof harness>>['h'], extra: Record<string, unknown> = {}) =>
+    h.callTool('mhlb_print_calendar', { startDate: '2026-09-01', endDate: '2026-09-30', studentIds: [7], ...extra });
+
+  it('returns a signed download link, and writes nothing to disk', async () => {
+    const data = scratch();
+    const { h } = await hostedHarness({
+      MCP_DATA_DIR: data,
+      MCP_BLOB_BASE_URL: BLOB_BASE,
+      MCP_BLOB_SIGNING_KEY: 'a2V5',
+    });
+    try {
+      const result = await call(h);
+      expect(result.isError).toBeFalsy();
+      // Only the JSON text block: no EmbeddedResource for the host to reject.
+      expect(result.content.map((c) => c.type)).toEqual(['text']);
+      const body = parseToolResult<Record<string, unknown>>(result);
+      expect(body).toMatchObject({
+        via: 'link',
+        filename: 'Lunch Calendar.pdf',
+        contentType: 'application/pdf',
+        bytes: PDF.byteLength,
+      });
+      expect(body.url).toMatch(new RegExp(`^${BLOB_BASE}/reports/[0-9a-f-]{36}/Lunch_Calendar\\.pdf\\?exp=\\d+&sig=`));
+      expect(Date.parse(String(body.expiresAt))).toBeGreaterThan(Date.now());
+      expect(body.path).toBeUndefined();
+      expect(puts).toHaveLength(1);
+      expect(puts[0]!.type).toBe('application/pdf');
+      expect(puts[0]!.bytes).toEqual(PDF);
+      expect(existsSync(join(data, 'reports'))).toBe(false);
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('ignores MYHOTLUNCHBOX_OUTPUT_DIR when hosted: the runner disk is unreachable', async () => {
+    const out = scratch();
+    const { h } = await hostedHarness({
+      MCP_BLOB_BASE_URL: BLOB_BASE,
+      MCP_BLOB_SIGNING_KEY: 'a2V5',
+      MYHOTLUNCHBOX_OUTPUT_DIR: out,
+    });
+    try {
+      const body = parseToolResult<{ via: string }>(await call(h));
+      expect(body.via).toBe('link');
+      expect(readdirSync(out)).toEqual([]);
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('keeps inline: true as base64 text when it fits', async () => {
+    const { h } = await hostedHarness({ MCP_BLOB_BASE_URL: BLOB_BASE, MCP_BLOB_SIGNING_KEY: 'a2V5' });
+    try {
+      const body = parseToolResult<{ base64: string }>(await call(h, { inline: true }));
+      expect(Buffer.from(body.base64, 'base64')).toEqual(Buffer.from(PDF));
+      expect(puts).toHaveLength(0);
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('falls back to a link when inline: true is over the inline cap', async () => {
+    const big = new Uint8Array(MAX_INLINE_BYTES + 1);
+    big.set(PDF);
+    const { h, fetchSpy } = await hostedHarness({ MCP_BLOB_BASE_URL: BLOB_BASE, MCP_BLOB_SIGNING_KEY: 'a2V5' });
+    fetchSpy.mockImplementation(async (input: RequestInfo | URL) =>
+      tokenHandler()(String(input)) ??
+      new Response(big, { status: 200, headers: { 'content-type': 'application/pdf' } }));
+    try {
+      const body = parseToolResult<{ via: string; note: string; base64?: string }>(await call(h, { inline: true }));
+      expect(body.via).toBe('link');
+      expect(body.base64).toBeUndefined();
+      expect(body.note).toMatch(/too large to return inline/);
+      expect(puts[0]!.bytes.byteLength).toBe(big.byteLength);
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('with no blob store, returns a small report inline as base64 rather than a dead path', async () => {
+    const data = scratch();
+    const { h } = await hostedHarness({ MCP_DATA_DIR: data });
+    try {
+      const body = parseToolResult<{ base64: string; note: string; path?: string }>(await call(h));
+      expect(body.path).toBeUndefined();
+      expect(Buffer.from(body.base64, 'base64')).toEqual(Buffer.from(PDF));
+      expect(body.note).toMatch(/no blob store/i);
+      expect(existsSync(join(data, 'reports'))).toBe(false);
+    } finally {
+      await h.close();
+    }
+  });
+
+  it('with no blob store, refuses an over-cap report as too_large instead of writing to disk', async () => {
+    const data = scratch();
+    const big = new Uint8Array(MAX_INLINE_BYTES + 1);
+    big.set(PDF);
+    const { h, fetchSpy } = await hostedHarness({ MCP_DATA_DIR: data });
+    fetchSpy.mockImplementation(async (input: RequestInfo | URL) =>
+      tokenHandler()(String(input)) ??
+      new Response(big, { status: 200, headers: { 'content-type': 'application/pdf' } }));
+    try {
+      const result = await call(h);
+      expect(result.isError).toBe(true);
+      const text = result.content.map((c) => ('text' in c ? c.text : '')).join(' ');
+      expect(text).toMatch(/too large/i);
+      expect(existsSync(join(data, 'reports'))).toBe(false);
+    } finally {
+      await h.close();
+    }
+  });
+});
+
+describe('local delivery is unchanged', () => {
+  it('still refuses inline: true over the inline cap, pointing at inline: false', async () => {
+    const big = new Uint8Array(MAX_INLINE_BYTES + 1);
+    big.set(PDF);
+    const { h, fetchSpy } = await harness();
+    fetchSpy.mockImplementation(async (input: RequestInfo | URL) =>
+      tokenHandler()(String(input)) ??
+      new Response(big, { status: 200, headers: { 'content-type': 'application/pdf' } }));
+    try {
+      const result = await h.callTool('mhlb_print_calendar', {
+        startDate: '2026-09-01', endDate: '2026-09-30', studentIds: [7], inline: true,
+      });
+      expect(result.isError).toBe(true);
+      const text = result.content.map((c) => ('text' in c ? c.text : '')).join(' ');
+      expect(text).toContain('inline: false');
+    } finally {
+      await h.close();
+    }
   });
 });
