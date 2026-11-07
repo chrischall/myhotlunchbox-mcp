@@ -39,7 +39,7 @@
         },
         {
           "name": "MYHOTLUNCHBOX_OUTPUT_DIR",
-          "description": "Directory the print tools write PDFs into (defaults to the working directory)",
+          "description": "Local installs: directory the print tools write PDFs into (default ~/Downloads). Ignored when hosted, where reports come back as download links",
           "isRequired": false,
           "format": "string",
           "isSecret": false

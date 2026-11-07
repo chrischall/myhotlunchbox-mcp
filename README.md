@@ -70,11 +70,26 @@ the full code.
 **Checkout** — `mhlb_init_checkout`, `mhlb_checkout`
 
 **Reports** — `mhlb_print_calendar`, `mhlb_print_orders`,
-`mhlb_print_transaction`. These return real PDFs; each writes the file and
-returns its path, or the bytes inline with `inline: true`. Set
-`MYHOTLUNCHBOX_OUTPUT_DIR` (the "Report folder" setting in the `.mcpb`) to
-choose where they land; it defaults to `reports/` under `MCP_DATA_DIR` when the
-host sets one, else `~/Downloads`. Existing files are never overwritten.
+`mhlb_print_transaction`. These return real PDFs. On a local install each
+writes the file and returns its path, or the bytes inline as base64 with
+`inline: true`. Set `MYHOTLUNCHBOX_OUTPUT_DIR` (the "Report folder" setting in
+the `.mcpb`) to choose where they land; it defaults to `~/Downloads`. Existing
+files are never overwritten. On a hosted server (mcp-host) the PDF comes back as
+a signed, expiring download link (`url`, `expiresAt`) and nothing is written to
+the server's disk; `inline: true` still returns base64 up to 750 KB, and links
+anything larger.
+
+## Upgrading
+
+### next release
+
+Hosted deployments only (local installs are unchanged): the report tools no
+longer write the PDF under `MCP_DATA_DIR` and return a `path` nobody can open.
+They return `{ via: "link", filename, contentType, bytes, url, expiresAt }`
+instead (`note` added when an `inline: true` request was too large and a link
+was returned). A hosted server with no blob store returns a report up to
+750 KB as `{ filename, contentType, bytes, base64, note }` and refuses a larger
+one as `too_large`.
 
 ## Confirmations
 

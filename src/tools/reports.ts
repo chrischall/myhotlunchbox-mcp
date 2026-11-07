@@ -4,6 +4,7 @@ import { isAbsolute, join, resolve } from 'node:path';
 import { McpToolError, readEnvVar, toolAnnotations, PositiveInt, IsoDate } from '@chrischall/mcp-utils';
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/server';
+import { blobStoreFromEnv, deliverFile, isHostedEnv } from '@chrischall/mcp-utils/export';
 import type { MhlbClient } from '../client.js';
 import { minifiedResult, schoolMeta } from './_shared.js';
 
@@ -11,11 +12,21 @@ import { minifiedResult, schoolMeta } from './_shared.js';
  * The `/parentReports/print*` endpoints are declared `responseType: 'blob'` in
  * the site's own client and stream a wkhtmltopdf-generated PDF. They generate a
  * document rather than changing account state, so they are reads and ask for no
- * confirmation — but they do write a local file, so the destination is
- * configurable and never silently overwrites.
+ * confirmation — but on a local install they write a file, so the destination
+ * is configurable and never silently overwrites.
+ *
+ * Hosted (mcp-host) the caller is a claude.ai session that shares no
+ * filesystem with this process, so a saved path is unreachable, and claude.ai
+ * rejects every non-image EmbeddedResource. There the PDF goes out as a signed,
+ * expiring download link from the blob store (`deliverFile`), and nothing is
+ * ever written to the runner's disk.
  */
 
-const MAX_INLINE_BYTES = 750_000;
+/** Largest report returned as base64 text (`inline: true`). Exported for tests. */
+export const MAX_INLINE_BYTES = 750_000;
+
+/** Key prefix for report links in the blob store. */
+const LINK_KEY_PREFIX = 'reports';
 
 /**
  * Where PDFs land: `MYHOTLUNCHBOX_OUTPUT_DIR`, else `reports/` under the
@@ -95,12 +106,81 @@ function safeName(name: string): string {
   return name.endsWith('.pdf') ? name : `${name}.pdf`;
 }
 
-function deliver(
+type ReportResult = ReturnType<typeof minifiedResult>;
+
+function base64Result(bytes: Uint8Array, contentType: string, filename: string, note?: string): ReportResult {
+  return minifiedResult({
+    filename,
+    contentType,
+    bytes: bytes.byteLength,
+    base64: Buffer.from(bytes).toString('base64'),
+    ...(note ? { note } : {}),
+  });
+}
+
+/**
+ * Hosted delivery: never the runner's disk. `inline: true` keeps the base64
+ * text when it fits (text reaches a hosted caller; an EmbeddedResource PDF
+ * would not); otherwise a signed link. With no blob store, a report that fits
+ * comes back inline and one that does not is refused as `too_large`.
+ */
+async function deliverHosted(
   bytes: Uint8Array,
   contentType: string,
   filename: string,
   inline: boolean,
-): ReturnType<typeof minifiedResult> {
+): Promise<ReportResult> {
+  const fits = bytes.byteLength <= MAX_INLINE_BYTES;
+  if (inline && fits) return base64Result(bytes, contentType, filename);
+  const store = blobStoreFromEnv();
+  if (!store) {
+    if (fits) {
+      return base64Result(
+        bytes,
+        contentType,
+        filename,
+        'This server is hosted and has no blob store for a download link, so the PDF is returned inline as base64.',
+      );
+    }
+    throw new McpToolError(
+      `Report is ${bytes.byteLength} bytes, over the ${MAX_INLINE_BYTES}-byte inline limit, and this hosted ` +
+        'server has no blob store for a download link — it is too large to hand over.',
+      {
+        kind: 'too_large',
+        hint: 'Print it from the My Hot Lunchbox web app, or narrow the request (fewer students, a shorter range).',
+      },
+    );
+  }
+  const delivered = await deliverFile({
+    bytes,
+    fileName: filename,
+    mimeType: contentType,
+    store,
+    prefer: 'link',
+    keyPrefix: LINK_KEY_PREFIX,
+  });
+  const note = inline
+    ? `Report is ${bytes.byteLength} bytes, too large to return inline (limit ${MAX_INLINE_BYTES}); a download link is returned instead.`
+    : undefined;
+  return minifiedResult({
+    via: delivered.via,
+    filename,
+    contentType,
+    bytes: bytes.byteLength,
+    url: delivered.url,
+    expiresAt: delivered.expiresAt,
+    ...(note ? { note } : {}),
+  });
+}
+
+async function deliver(
+  bytes: Uint8Array,
+  contentType: string,
+  filename: string,
+  inline: boolean,
+): Promise<ReportResult> {
+  if (isHostedEnv()) return deliverHosted(bytes, contentType, filename, inline);
+
   if (inline) {
     if (bytes.byteLength > MAX_INLINE_BYTES) {
       throw new McpToolError(
@@ -108,12 +188,7 @@ function deliver(
         { hint: 'Call again with inline: false to write it to a file instead.' },
       );
     }
-    return minifiedResult({
-      filename,
-      contentType,
-      bytes: bytes.byteLength,
-      base64: Buffer.from(bytes).toString('base64'),
-    });
+    return base64Result(bytes, contentType, filename);
   }
 
   const dir = outputDir();
@@ -144,15 +219,21 @@ export function midpoint(start: string, end: string): string {
 const inlineFlag = z
   .boolean()
   .optional()
-  .describe('Return the PDF as base64 in the result instead of writing it to a file. Default false.');
+  .describe(
+    'Return the PDF as base64 in the result instead of writing it to a file. Default false. On a hosted ' +
+      'server a report over the inline limit comes back as a download link instead.',
+  );
+
+const DELIVERY =
+  'Locally the PDF is written to disk and its path returned (or the bytes inline as base64 with ' +
+  'inline: true); on a hosted server it comes back as a signed, expiring download link (url, expiresAt).';
 
 export function registerReportTools(server: McpServer, client: MhlbClient): void {
   server.registerTool(
     'mhlb_print_calendar',
     {
       description:
-        'Generate the printable lunch calendar PDF for a date range. Writes the PDF to disk and returns its ' +
-        'path (or the bytes inline with inline: true).',
+        'Generate the printable lunch calendar PDF for a date range. ' + DELIVERY,
       annotations: toolAnnotations({ title: 'Print lunch calendar', readOnly: false, openWorld: true, destructive: false }),
       _meta: schoolMeta('other'),
       inputSchema: z.object({
@@ -189,7 +270,7 @@ export function registerReportTools(server: McpServer, client: MhlbClient): void
       description:
         'Generate the printable order-details PDF for a single lunch date. Note this is one date, not a range, ' +
         'and studentIds is required — the endpoint fails if it is empty, or if no order matches the date and ' +
-        'status you ask for. Get both from mhlb_get_calendar.',
+        'status you ask for. Get both from mhlb_get_calendar. ' + DELIVERY,
       annotations: toolAnnotations({ title: 'Print order details', readOnly: false, openWorld: true, destructive: false }),
       _meta: schoolMeta('other'),
       inputSchema: z.object({
@@ -223,7 +304,7 @@ export function registerReportTools(server: McpServer, client: MhlbClient): void
       description:
         'Generate the printable receipt PDF for one transaction. Pass the transaction id from ' +
         'mhlb_list_transactions; the server fetches that transaction’s detail record and has the endpoint ' +
-        'render it, so the receipt always reflects the account’s real data.',
+        'render it, so the receipt always reflects the account’s real data. ' + DELIVERY,
       annotations: toolAnnotations({ title: 'Print transaction receipt', readOnly: false, openWorld: true, destructive: false }),
       _meta: schoolMeta('other'),
       inputSchema: z.object({
