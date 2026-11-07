@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.1](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.3.0...v1.3.1) (2026-11-07)
+
+
+### Bug Fixes
+
+* **deps:** upgrade @chrischall/mcp-utils to 3.7.2 so uploads carry only the file's bytes ([#144](https://github.com/chrischall/myhotlunchbox-mcp/issues/144)) ([2508cde](https://github.com/chrischall/myhotlunchbox-mcp/commit/2508cde0474fde6b23cb3713619c26ce7ac74e9c))
+* **reports:** return report PDFs as download links on hosted servers ([#141](https://github.com/chrischall/myhotlunchbox-mcp/issues/141)) ([1b54c34](https://github.com/chrischall/myhotlunchbox-mcp/commit/1b54c341065cf9a1872c5834b5060ef1b90c1226))
+
 ## [1.3.0](https://github.com/chrischall/myhotlunchbox-mcp/compare/v1.2.8...v1.3.0) (2026-11-04)
 
 
